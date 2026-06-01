@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import useSWR from 'swr'
 import { useSession, signOut } from 'next-auth/react'
 import { api, type WorkerStatus } from '@/lib/api'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 const NAV_ITEMS = [
   { href: '/',              label: 'Dashboard',      icon: '⬡' },
@@ -206,11 +207,12 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <div className="sidebar-logo">
-          <span className="sidebar-logo-icon">🧬</span>
-          <div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div className="sidebar-logo">
+            <span className="sidebar-logo-icon">🧬</span>
             <div className="sidebar-logo-text glow-cyan">Bio-Platform</div>
           </div>
+          <ThemeToggle />
         </div>
         <div className="sidebar-subtitle">TCC · BIOINFORMÁTICA</div>
       </div>
