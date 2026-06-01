@@ -1,27 +1,110 @@
 'use client'
+
 import useSWR from 'swr'
+import Link from 'next/link'
 import { api, type Project } from '@/lib/api'
+
+const MARKER_METHOD: Record<string, string> = {
+  INOVAHERB:  'ANCOM-BC2 · Fatorial',
+  'Pós-Fogo': 'MaAsLin2 · Série Temporal',
+  Biorremediação: 'SpiecEasi · Correlação',
+}
+
+function markerBadge(marker: string) {
+  if (marker === 'ITS') return <span className="badge badge-purple">ITS</span>
+  return <span className="badge badge-blue">16S</span>
+}
+
+function statusBadge(status: string) {
+  if (status === 'active')    return <span className="badge badge-green">● active</span>
+  if (status === 'running')   return <span className="badge badge-cyan">◉ running</span>
+  if (status === 'completed') return <span className="badge badge-cyan">✓ done</span>
+  return <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-3)', border: '1px solid var(--border)' }}>{status}</span>
+}
+
+function ProjectCard({ p }: { p: Project }) {
+  const method = MARKER_METHOD[p.code] ?? 'Análise estatística'
+
+  return (
+    <div className="project-card">
+      <div className="project-card-header">
+        <span className="project-code">{p.code}</span>
+        {markerBadge(p.marker_type)}
+      </div>
+      <div className="project-name">{p.name}</div>
+      <div className="project-meta">{method}</div>
+      <div className="project-footer">
+        {statusBadge(p.status)}
+        <Link
+          href={`/jobs`}
+          style={{
+            fontSize: 12,
+            color: 'var(--cyan)',
+            textDecoration: 'none',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          Jobs →
+        </Link>
+      </div>
+    </div>
+  )
+}
 
 export default function ProjectsPage() {
   const { data: projects, error, isLoading } = useSWR('projects', api.getProjects)
 
-  if (isLoading) return <p>Carregando...</p>
-  if (error) return <p>Erro ao carregar projetos.</p>
-
   return (
-    <main style={{ padding: '2rem' }}>
-      <h1>Projetos</h1>
-      <div style={{ marginTop: '1rem', display: 'grid', gap: '1rem' }}>
-        {projects?.map((p: Project) => (
-          <div key={p.id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '1rem' }}>
-            <strong>{p.code}</strong> — {p.name}
-            <span style={{ marginLeft: '1rem', color: '#64748b' }}>{p.marker_type}</span>
-            <span style={{ marginLeft: '1rem', color: p.status === 'active' ? '#16a34a' : '#dc2626' }}>
-              {p.status}
-            </span>
-          </div>
-        ))}
+    <>
+      <div className="page-header">
+        <h1 className="page-title">Projetos</h1>
+        <p className="page-subtitle">
+          Projetos de análise genômica ativos na plataforma
+        </p>
       </div>
-    </main>
+
+      {isLoading && (
+        <div className="project-grid">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="project-card">
+              <div className="skeleton" style={{ height: 16, width: '55%', marginBottom: 10 }} />
+              <div className="skeleton" style={{ height: 12, width: '80%', marginBottom: 8 }} />
+              <div className="skeleton" style={{ height: 12, width: '50%' }} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && (
+        <div
+          className="card"
+          style={{ padding: '20px', color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 8 }}
+        >
+          <span>⚠</span>
+          <span>Erro ao carregar projetos. Verifique se a API está rodando em{' '}
+            <code className="mono">{process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}</code>
+          </span>
+        </div>
+      )}
+
+      {!isLoading && !error && projects && projects.length === 0 && (
+        <div className="empty-state">
+          <span className="empty-state-icon">◌</span>
+          <span className="empty-state-title">Nenhum projeto encontrado</span>
+          <span className="empty-state-desc">A API retornou uma lista vazia.</span>
+        </div>
+      )}
+
+      {!isLoading && !error && projects && projects.length > 0 && (
+        <div className="project-grid">
+          {projects.map((p: Project) => (
+            <ProjectCard key={p.id} p={p} />
+          ))}
+        </div>
+      )}
+    </>
   )
 }

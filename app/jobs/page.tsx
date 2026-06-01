@@ -1,41 +1,149 @@
 'use client'
-import { useEffect, useState } from 'react'
-import useSWR from 'swr'
-import { api, type Job } from '@/lib/api'
+
+import { useEffect, useState, useRef } from 'react'
 import { connectJobStatusSocket } from '@/lib/websocket'
 
-const STATUS_COLORS: Record<string, string> = {
-  queued: '#f59e0b',
-  running: '#3b82f6',
-  done: '#16a34a',
-  failed: '#dc2626',
+const STATUS_CONFIG: Record<string, { cls: string; label: string }> = {
+  queued:  { cls: 'badge-amber',  label: 'queued'  },
+  running: { cls: 'badge-cyan',   label: 'running' },
+  done:    { cls: 'badge-green',  label: 'done'    },
+  failed:  { cls: 'badge-red',    label: 'failed'  },
+}
+
+interface JobEntry {
+  jobId: string
+  status: string
+  timestamp: Date
+  isNew: boolean
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const cfg = STATUS_CONFIG[status] ?? { cls: '', label: status }
+  const isRunning = status === 'running'
+  return (
+    <span className={`badge ${cfg.cls}`}>
+      {isRunning && <span className="dot dot-cyan pulse" style={{ width: 6, height: 6 }} />}
+      {cfg.label}
+    </span>
+  )
+}
+
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
 export default function JobsPage() {
-  const [statuses, setStatuses] = useState<Record<string, string>>({})
+  const [jobs, setJobs] = useState<JobEntry[]>([])
+  const [connected, setConnected] = useState(false)
+  const [totalReceived, setTotalReceived] = useState(0)
+  const seenRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
+    setConnected(true)
     const disconnect = connectJobStatusSocket((jobId, status) => {
-      setStatuses(prev => ({ ...prev, [jobId]: status }))
+      const isNew = !seenRef.current.has(jobId)
+      seenRef.current.add(jobId)
+
+      setTotalReceived((n) => n + 1)
+      setJobs((prev) => {
+        // Update existing row if same jobId
+        const idx = prev.findIndex((j) => j.jobId === jobId)
+        if (idx !== -1) {
+          const updated = [...prev]
+          updated[idx] = { ...updated[idx], status, timestamp: new Date(), isNew: false }
+          return updated
+        }
+        // Prepend new row
+        return [{ jobId, status, timestamp: new Date(), isNew: true }, ...prev]
+      })
+
+      // Clear "new" flag after animation
+      setTimeout(() => {
+        setJobs((prev) =>
+          prev.map((j) => (j.jobId === jobId ? { ...j, isNew: false } : j))
+        )
+      }, 400)
     })
-    return disconnect
+
+    return () => {
+      disconnect()
+      setConnected(false)
+    }
   }, [])
 
+  const runningCount = jobs.filter((j) => j.status === 'running').length
+
   return (
-    <main style={{ padding: '2rem' }}>
-      <h1>Fila de Análises</h1>
-      <p style={{ color: '#64748b', marginTop: '0.5rem' }}>
-        Status em tempo real via WebSocket.
-      </p>
-      {Object.entries(statuses).length === 0 && (
-        <p style={{ marginTop: '1rem', color: '#94a3b8' }}>Aguardando jobs...</p>
-      )}
-      {Object.entries(statuses).map(([jobId, status]) => (
-        <div key={jobId} style={{ marginTop: '0.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <code style={{ fontSize: 12, color: '#64748b' }}>{jobId.slice(0, 8)}…</code>
-          <span style={{ color: STATUS_COLORS[status] ?? '#1e293b', fontWeight: 600 }}>{status}</span>
+    <>
+      {/* Header */}
+      <div className="page-header">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="page-title">Fila de Jobs</h1>
+            <p className="page-subtitle">Status em tempo real via WebSocket</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {runningCount > 0 && (
+              <span className="badge badge-cyan">
+                <span className="dot dot-cyan pulse" style={{ width: 6, height: 6 }} />
+                {runningCount} running
+              </span>
+            )}
+            {totalReceived > 0 && (
+              <span className="badge" style={{ background: 'var(--surface-2)', color: 'var(--text-2)', border: '1px solid var(--border)' }}>
+                {totalReceived} recebidos
+              </span>
+            )}
+          </div>
         </div>
-      ))}
-    </main>
+      </div>
+
+      {/* Table */}
+      {jobs.length > 0 ? (
+        <div>
+          <div className="jobs-table-header">
+            <span>Job ID</span>
+            <span>Tipo</span>
+            <span>Status</span>
+            <span>Horário</span>
+          </div>
+          <div className="jobs-table">
+            {jobs.map((j) => (
+              <div key={j.jobId} className={`jobs-row${j.isNew ? ' new-job' : ''}`}>
+                <span className="job-id">{j.jobId.slice(0, 8)}…</span>
+                <span className="job-type">Pipeline Job</span>
+                <StatusBadge status={j.status} />
+                <span className="job-time">{formatTime(j.timestamp)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          <div className="empty-state">
+            <span className="empty-state-icon">◌</span>
+            <span className="empty-state-title">Aguardando jobs do R Worker...</span>
+            <span className="empty-state-desc">
+              Quando o pipeline processar amostras, os status aparecem aqui.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* WS status footer */}
+      <div className="ws-status-bar" style={{ marginTop: 24 }}>
+        {connected ? (
+          <>
+            <span className="dot dot-green" style={{ width: 6, height: 6 }} />
+            <span>Conectado via WebSocket</span>
+          </>
+        ) : (
+          <>
+            <span className="dot dot-red" style={{ width: 6, height: 6 }} />
+            <span>Desconectado</span>
+          </>
+        )}
+      </div>
+    </>
   )
 }

@@ -12,7 +12,11 @@ export function connectJobStatusSocket(onUpdate: JobStatusCallback): () => void 
     }
   }
 
-  ws.onerror = (err) => console.error('[ws] erro:', err)
+  ws.onerror = () => {
+    if (ws.readyState !== WebSocket.CLOSING && ws.readyState !== WebSocket.CLOSED) {
+      console.warn('[ws] conexão perdida — tentando reconectar...')
+    }
+  }
 
   return () => ws.close()
 }
