@@ -2,85 +2,116 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import useSWR from 'swr'
+import { api, type WorkerStatus } from '@/lib/api'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
-
-interface NavItem {
-  href: string
-  label: string
-  icon: string
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { href: '/',             label: 'Dashboard',    icon: '⬡' },
-  { href: '/projects',     label: 'Projetos',     icon: '⬡' },
-  { href: '/jobs',         label: 'Fila de Jobs', icon: '◈' },
-  { href: '/diversity',    label: 'Beta Diversity', icon: '◎' },
-  { href: '/cross-project', label: 'Figura TCC ✦', icon: '✦' },
+const NAV_ITEMS = [
+  { href: '/',              label: 'Dashboard',      icon: '⬡' },
+  { href: '/projects',      label: 'Projetos',       icon: '⬡' },
+  { href: '/jobs',          label: 'Fila de Jobs',   icon: '◈' },
+  { href: '/diversity',     label: 'Beta Diversity',  icon: '◎' },
+  { href: '/cross-project', label: 'Figura TCC ✦',   icon: '✦' },
 ]
 
-function WorkerStatus() {
-  const [status, setStatus] = useState<'loading' | 'online' | 'offline'>('loading')
+function fmtSeconds(s: number): string {
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60)
+  const rem = s % 60
+  return rem > 0 ? `${m}m ${rem}s` : `${m}m`
+}
 
-  useEffect(() => {
-    let cancelled = false
+function timeAgo(s: number): string {
+  if (s < 60)   return `${s}s atrás`
+  if (s < 3600) return `${Math.floor(s / 60)}m atrás`
+  return `${Math.floor(s / 3600)}h atrás`
+}
 
-    async function check() {
-      try {
-        const res = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(3000) })
-        if (!cancelled) setStatus(res.ok ? 'online' : 'offline')
-      } catch {
-        if (!cancelled) setStatus('offline')
-      }
+function WorkerPanel() {
+  const [apiOnline, setApiOnline] = useState(true)
+
+  const { data, isLoading } = useSWR<WorkerStatus>(
+    'worker-status',
+    () => api.getWorkerStatus(),
+    {
+      refreshInterval: 5000,
+      onSuccess: () => setApiOnline(true),
+      onError:   () => setApiOnline(false),
     }
+  )
 
-    check()
-    const interval = setInterval(check, 15_000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [])
+  const running = data?.running      ?? []
+  const queued  = data?.queued_count ?? 0
+  const recent  = data?.recent       ?? []
 
   return (
-    <div className="worker-status-card">
-      <div className="worker-status-label">R Worker</div>
-      <div className="worker-status-row">
-        {status === 'loading' && (
-          <>
-            <span className="dot dot-gray pulse" />
-            <span style={{ color: 'var(--text-3)' }}>Verificando...</span>
-          </>
-        )}
-        {status === 'online' && (
-          <>
-            <span className="dot dot-green" />
-            <span style={{ color: 'var(--green)' }}>Online</span>
-          </>
-        )}
-        {status === 'offline' && (
-          <>
-            <span className="dot dot-red" />
-            <span style={{ color: 'var(--red)' }}>Offline</span>
-          </>
-        )}
+    <div className="worker-panel">
+      {/* Cabeçalho */}
+      <div className="worker-panel-header">
+        <span className="worker-panel-title">R WORKER</span>
+        <div className="worker-online-badge">
+          <span className={`dot ${apiOnline ? 'dot-green pulse' : 'dot-red'}`} />
+          <span style={{ color: apiOnline ? 'var(--green)' : 'var(--red)', fontSize: 11 }}>
+            {isLoading ? '...' : apiOnline ? 'Online' : 'Offline'}
+          </span>
+        </div>
       </div>
+
+      {/* Jobs em execução */}
+      {running.map(job => (
+        <div key={job.id} className="worker-job-running">
+          <div className="worker-job-row">
+            <span className="worker-job-type">{job.job_type}</span>
+            <span className="worker-job-project">{job.project_code}</span>
+          </div>
+          <div className="worker-progress-bar-track">
+            <div className="worker-progress-bar-fill" style={{ width: `${job.progress_pct}%` }} />
+          </div>
+          <div className="worker-job-meta">
+            <span>{job.progress_pct}%</span>
+            <span>≈ {fmtSeconds(job.remaining_s)} restantes</span>
+          </div>
+        </div>
+      ))}
+
+      {/* Idle */}
+      {running.length === 0 && queued === 0 && !isLoading && (
+        <div className="worker-idle">
+          <span className="dot dot-gray" style={{ marginRight: 6 }} />
+          <span>Aguardando jobs</span>
+        </div>
+      )}
+
+      {/* Fila */}
+      {queued > 0 && (
+        <div className="worker-queue-row">
+          <span style={{ color: 'var(--amber)' }}>◌</span>
+          <span>{queued} job{queued > 1 ? 's' : ''} na fila</span>
+        </div>
+      )}
+
+      {/* Recentes */}
+      {recent.length > 0 && <div className="worker-divider" />}
+      {recent.slice(0, 4).map(job => (
+        <div key={job.id} className="worker-recent-row">
+          <span style={{ color: job.status === 'done' ? 'var(--green)' : 'var(--red)', fontSize: 10 }}>
+            {job.status === 'done' ? '✓' : '✗'}
+          </span>
+          <span className="worker-recent-type">{job.job_type}</span>
+          <span className="worker-recent-project">{job.project_code}</span>
+          <span className="worker-recent-time">{timeAgo(job.seconds_ago)}</span>
+        </div>
+      ))}
     </div>
   )
 }
 
 export default function Sidebar() {
   const pathname = usePathname()
-
-  function isActive(href: string) {
-    if (href === '/') return pathname === '/'
-    return pathname.startsWith(href)
-  }
+  const isActive = (href: string) => href === '/' ? pathname === '/' : pathname.startsWith(href)
 
   return (
     <aside className="sidebar">
-      {/* Header */}
       <div className="sidebar-header">
         <div className="sidebar-logo">
           <span className="sidebar-logo-icon">🧬</span>
@@ -88,10 +119,9 @@ export default function Sidebar() {
             <div className="sidebar-logo-text glow-cyan">Bio-Platform</div>
           </div>
         </div>
-        <div className="sidebar-subtitle">TCC · Bioinformática</div>
+        <div className="sidebar-subtitle">TCC · BIOINFORMÁTICA</div>
       </div>
 
-      {/* Nav */}
       <nav className="sidebar-nav">
         {NAV_ITEMS.map((item) => (
           <Link
@@ -105,9 +135,8 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
       <div className="sidebar-footer">
-        <WorkerStatus />
+        <WorkerPanel />
       </div>
     </aside>
   )

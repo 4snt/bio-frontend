@@ -10,10 +10,11 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  getProjects: () => apiFetch<Project[]>('/api/v1/projects/'),
-  getProject: (id: string) => apiFetch<Project>(`/api/v1/projects/${id}`),
-  getJobs: (projectId: string) => apiFetch<Job[]>(`/api/v1/jobs/${projectId}`),
-  getAnalysisResults: (jobId: string) => apiFetch<AnalysisResult[]>(`/api/v1/analysis/${jobId}/results`),
+  getProjects:       () => apiFetch<Project[]>('/api/v1/projects/'),
+  getProject:        (id: string) => apiFetch<Project>(`/api/v1/projects/${id}`),
+  getJobs:           (projectId: string) => apiFetch<Job[]>(`/api/v1/jobs/${projectId}`),
+  getWorkerStatus:   () => apiFetch<WorkerStatus>('/api/v1/worker/status'),
+  getAnalysisResults:(jobId: string) => apiFetch<AnalysisResult[]>(`/api/v1/analysis/${jobId}/results`),
   searchDegs: (q: string, project?: string) => {
     const params = new URLSearchParams({ q, ...(project ? { project } : {}) })
     return apiFetch<DegResult[]>(`/api/v1/analysis/search/degs?${params}`)
@@ -50,4 +51,30 @@ export interface DegResult {
   log2_fold_change: number
   p_adjusted: number
   base_mean: number
+}
+
+export interface RunningJob {
+  id: string
+  job_type: string
+  project_code: string
+  project_name: string
+  elapsed_s: number
+  estimated_s: number
+  progress_pct: number
+  remaining_s: number
+}
+
+export interface RecentJob {
+  id: string
+  job_type: string
+  status: 'done' | 'failed'
+  project_code: string
+  seconds_ago: number
+  error_msg: string | null
+}
+
+export interface WorkerStatus {
+  running: RunningJob[]
+  queued_count: number
+  recent: RecentJob[]
 }
