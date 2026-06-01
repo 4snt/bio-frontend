@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
-import { api, type Project, type Job, type Sample, type PresignedPair, type ProjectArtifacts } from '@/lib/api'
+import { api, type Project, type Job, type Sample, type PresignedPair, type ProjectArtifacts, type ArtifactUploadUrl } from '@/lib/api'
 
 const ANALYSIS_TYPES = [
   'deseq2', 'ancombc2', 'maaslin2', 'spieceasi',
@@ -74,6 +74,44 @@ export default function ProjectDetailPage() {
   )
 
   // Enqueue state — auto-preenche com o caminho padrão quando disponível
+  // Upload de artefato RDS
+  const [showArtifactUpload, setShowArtifactUpload] = useState(false)
+  const [artifactFile, setArtifactFile] = useState<File | null>(null)
+  const [artifactUploading, setArtifactUploading] = useState(false)
+  const [artifactStatus, setArtifactStatus] = useState('')
+  const artifactInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleArtifactUpload() {
+    if (!artifactFile || !id) return
+    setArtifactUploading(true)
+    setArtifactStatus('gerando URL...')
+    try {
+      const { upload_url, key } = await api.getArtifactUploadUrl(id, artifactFile.name)
+      setArtifactStatus('enviando para MinIO...')
+      const res = await fetch(upload_url, {
+        method: 'PUT',
+        body: artifactFile,
+        headers: { 'Content-Type': 'application/octet-stream' },
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setArtifactStatus('concluido')
+      mutate(['artifacts', id])
+      // auto-preenche o enqueue com o arquivo que acabou de subir
+      setPhyloseqKey(key)
+      setTimeout(() => {
+        setArtifactFile(null)
+        setArtifactStatus('')
+        setShowArtifactUpload(false)
+        if (artifactInputRef.current) artifactInputRef.current.value = ''
+      }, 1500)
+    } catch (e) {
+      setArtifactStatus('Erro no upload. Tente novamente.')
+    } finally {
+      setArtifactUploading(false)
+    }
+  }
+
+  // Enqueue state
   const [showEnqueue, setShowEnqueue] = useState(false)
   const [selectedJobType, setSelectedJobType] = useState(ANALYSIS_TYPES[0])
   const [phyloseqKey, setPhyloseqKey] = useState('')
@@ -375,6 +413,138 @@ export default function ProjectDetailPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* Artefatos phyloseq */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div>
+            <span className="section-title">Artefatos</span>
+            <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 10 }}>
+              arquivos .rds usados como entrada nas análises
+            </span>
+          </div>
+          <button
+            onClick={() => setShowArtifactUpload(v => !v)}
+            style={{
+              padding: '6px 14px', background: 'rgba(168,85,247,0.1)',
+              border: '1px solid rgba(168,85,247,0.25)', borderRadius: 8,
+              color: 'var(--purple)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            {showArtifactUpload ? '✕ Fechar' : '↑ Upload .rds'}
+          </button>
+        </div>
+
+        {/* Upload panel */}
+        {showArtifactUpload && (
+          <div className="card" style={{ padding: 20, marginBottom: 16, borderColor: 'rgba(168,85,247,0.2)' }}>
+            <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 14, fontSize: 14 }}>
+              Upload de Artefato phyloseq
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>
+              Selecione um arquivo <span className="mono">.rds</span> gerado pelo script{' '}
+              <span className="mono">tsv_to_phyloseq.R</span> ou exportado pelo R.
+              O nome do arquivo será preservado (ex: <span className="mono">phyloseq.rds</span>,{' '}
+              <span className="mono">phyloseq_fungi.rds</span>).
+            </div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>
+                  Arquivo .rds
+                </label>
+                <input
+                  ref={artifactInputRef}
+                  type="file"
+                  accept=".rds,.RDS"
+                  onChange={e => setArtifactFile(e.target.files?.[0] ?? null)}
+                  style={{ color: 'var(--text)', fontSize: 13 }}
+                />
+              </div>
+              <button
+                onClick={handleArtifactUpload}
+                disabled={!artifactFile || artifactUploading}
+                style={{
+                  padding: '7px 18px',
+                  background: artifactFile && !artifactUploading ? 'var(--purple)' : 'var(--surface-2)',
+                  color: artifactFile && !artifactUploading ? '#fff' : 'var(--text-3)',
+                  border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                  cursor: artifactFile && !artifactUploading ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {artifactUploading ? 'Enviando...' : 'Confirmar Upload'}
+              </button>
+            </div>
+            {artifactStatus === 'concluido' && (
+              <div style={{ marginTop: 10, fontSize: 12, color: 'var(--green)' }}>
+                ✓ Upload concluído — artefato disponível para análise.
+              </div>
+            )}
+            {artifactStatus.startsWith('Erro') && (
+              <div style={{ marginTop: 10, fontSize: 12, color: 'var(--red)' }}>{artifactStatus}</div>
+            )}
+            {artifactUploading && (
+              <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+                {artifactStatus}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Lista de artefatos */}
+        {artifacts && artifacts.available.length === 0 && (
+          <div style={{
+            padding: '16px 20px', background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 8, fontSize: 13, color: 'var(--text-3)',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <span style={{ fontSize: 18 }}>◌</span>
+            <div>
+              <div style={{ color: 'var(--text-2)', fontWeight: 600, marginBottom: 2 }}>Nenhum artefato no MinIO</div>
+              <div style={{ fontSize: 12 }}>
+                Faça upload de um <span className="mono">.rds</span> ou use o script{' '}
+                <span className="mono">scripts/data-prep/tsv_to_phyloseq.R</span> para converter as tabelas do laboratório.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {artifacts && artifacts.available.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {artifacts.available.map(key => {
+              const filename = key.replace('pipeline-artifacts/', '')
+              const isSelected = phyloseqKey === key
+              return (
+                <div
+                  key={key}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px', background: 'var(--surface)',
+                    border: `1px solid ${isSelected ? 'rgba(168,85,247,0.4)' : 'var(--border)'}`,
+                    borderRadius: 8, gap: 12,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 16 }}>📦</span>
+                    <span className="mono" style={{ fontSize: 12, color: 'var(--text)' }}>{filename}</span>
+                  </div>
+                  <button
+                    onClick={() => { setPhyloseqKey(key); setShowEnqueue(true) }}
+                    style={{
+                      padding: '4px 12px',
+                      background: isSelected ? 'rgba(168,85,247,0.15)' : 'var(--surface-2)',
+                      border: `1px solid ${isSelected ? 'rgba(168,85,247,0.35)' : 'var(--border)'}`,
+                      borderRadius: 6, color: isSelected ? 'var(--purple)' : 'var(--text-2)',
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {isSelected ? '✓ Selecionado' : 'Usar nesta análise'}
+                  </button>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

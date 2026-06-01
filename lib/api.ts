@@ -35,8 +35,13 @@ export const api = {
                         method: 'POST',
                         body: JSON.stringify({ project_id: projectId, job_type: jobType, payload }),
                       }),
-  getArtifacts:     (projectId: string) =>
-                      apiFetch<ProjectArtifacts>(`/api/v1/samples/${projectId}/artifacts`),
+  getArtifacts:       (projectId: string) =>
+                        apiFetch<ProjectArtifacts>(`/api/v1/samples/${projectId}/artifacts`),
+  getArtifactUploadUrl: (projectId: string, filename: string) =>
+                        apiFetch<ArtifactUploadUrl>('/api/v1/samples/artifact-upload-url', {
+                          method: 'POST',
+                          body: JSON.stringify({ project_id: projectId, filename }),
+                        }),
 }
 
 export interface Project {
@@ -131,4 +136,11 @@ export interface ProjectArtifacts {
   default_key: string
   available: string[]
   project_code: string
+}
+
+export interface ArtifactUploadUrl {
+  upload_url: string
+  key: string
+  bucket: string
+  object_key: string
 }
