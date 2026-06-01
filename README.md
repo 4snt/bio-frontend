@@ -6,6 +6,25 @@ Next.js 14 (App Router) com visualizações científicas interativas via Plotly.
 
 ---
 
+## Status de implementação
+
+| Componente | Status | Detalhe |
+|---|---|---|
+| Estrutura App Router (6 rotas) | ✅ Pronto | `/projects`, `/analysis/[id]`, `/network/[id]`, `/diversity`, `/cross-project`, `/jobs` |
+| `lib/api.ts` — cliente tipado REST | ✅ Pronto | Wrapper sobre `fetch` com tipagem para todos os endpoints |
+| `lib/websocket.ts` — cliente WS | ✅ Pronto | Conecta no `/api/v1/jobs/ws/status`, callbacks por job |
+| Página `/projects` | 🔧 Stub | Rota existe, UI vazia — aguarda dados reais da API |
+| Página `/analysis/[id]` (volcano / MA) | 🔧 Stub | Componente `Plot` dinâmico declarado, sem dados |
+| Página `/network/[id]` (Cytoscape) | 🔧 Stub | Wrapper Cytoscape declarado, sem dados |
+| Página `/diversity` (PCoA) | 🔧 Stub | Rota criada, componente pendente |
+| Página `/cross-project` (6 PCoAs) | 🔧 Stub | Layout grid 3×2 definido, aguarda `CrossProjectFigureReady` |
+| Página `/jobs` (fila em tempo real) | 🔧 Stub | WebSocket conectado, UI pendente |
+| Componentes `charts/` e `network/` | 🔧 A criar | Wrappers Plotly e Cytoscape reutilizáveis |
+
+> Todas as páginas têm estrutura de rota e conexão com a API definidas. O próximo passo é preencher os componentes de visualização conforme os dados de cada análise ficam disponíveis.
+
+---
+
 ## Contexto
 
 Frontend para acompanhar e visualizar as análises de três projetos paralelos (INOVAHERB, Pós-Fogo, Biorremediação). Consome a API REST do [bio-platform](../bio-platform) e recebe atualizações em tempo real via WebSocket.
