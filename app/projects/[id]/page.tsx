@@ -237,16 +237,18 @@ export default function ProjectDetailPage() {
 
             {presigned && (
               <>
-                <div style={{ fontSize: 12, color: 'var(--green)', marginBottom: 8 }}>
-                  R2 detectado: <span className="mono">{presigned.r2.key.split('/').pop()}</span> ✓
+                <div style={{ fontSize: 12, color: 'var(--green)', marginBottom: 10 }}>
+                  ✓ R2 detectado: <span className="mono">{presigned.r2.key.split('/').pop()}</span>
                 </div>
                 <div style={{
                   display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-2)',
                   marginBottom: 12, flexWrap: 'wrap',
+                  background: 'var(--surface-2)', borderRadius: 6, padding: '8px 12px',
                 }}>
-                  <span>Projeto: <span className="mono" style={{ color: 'var(--cyan)' }}>{presigned.parsed.project_code}</span></span>
+                  <span>Marcador: <span className="mono" style={{ color: 'var(--cyan)' }}>{presigned.parsed.marker_type}</span></span>
+                  <span>Amostra: <span className="mono">{presigned.parsed.sample_number}</span></span>
                   <span>Grupo: <span className="mono">{presigned.parsed.treatment_group}</span></span>
-                  <span>Replica: <span className="mono">{presigned.parsed.replicate}</span></span>
+                  <span>Réplica: <span className="mono">{presigned.parsed.replicate}</span></span>
                 </div>
               </>
             )}

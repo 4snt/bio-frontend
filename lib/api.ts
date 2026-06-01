@@ -109,7 +109,13 @@ export interface Sample {
 export interface PresignedPair {
   r1: { upload_url: string; key: string }
   r2: { upload_url: string; key: string }
-  parsed: { project_code: string; treatment_group: string; replicate: number; read_pair: string }
+  parsed: {
+    marker_type: string
+    sample_number: string
+    treatment_group: string
+    replicate: number
+    read_pair: string
+  }
 }
 
 export interface ConfirmPairBody {
