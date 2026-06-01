@@ -19,6 +19,22 @@ export const api = {
     const params = new URLSearchParams({ q, ...(project ? { project } : {}) })
     return apiFetch<DegResult[]>(`/api/v1/analysis/search/degs?${params}`)
   },
+  getSamples:       (projectId: string) => apiFetch<Sample[]>(`/api/v1/samples/${projectId}`),
+  getPresignedPair: (r1filename: string, projectId: string) =>
+                      apiFetch<PresignedPair>('/api/v1/samples/presigned-pair', {
+                        method: 'POST',
+                        body: JSON.stringify({ r1_filename: r1filename, project_id: projectId }),
+                      }),
+  confirmPair:      (body: ConfirmPairBody) =>
+                      apiFetch<{ sample_id: string }>('/api/v1/samples/confirm-pair', {
+                        method: 'POST',
+                        body: JSON.stringify(body),
+                      }),
+  enqueueJob:       (projectId: string, jobType: string, payload: Record<string, string>) =>
+                      apiFetch<{ job_id: string }>('/api/v1/jobs/enqueue', {
+                        method: 'POST',
+                        body: JSON.stringify({ project_id: projectId, job_type: jobType, payload }),
+                      }),
 }
 
 export interface Project {
@@ -77,4 +93,28 @@ export interface WorkerStatus {
   running: RunningJob[]
   queued_count: number
   recent: RecentJob[]
+}
+
+export interface Sample {
+  id: string
+  project_id: string
+  filename: string
+  treatment_group: string
+  replicate: number
+  fastq_r1_key: string
+  fastq_r2_key: string
+  created_at: string
+}
+
+export interface PresignedPair {
+  r1: { upload_url: string; key: string }
+  r2: { upload_url: string; key: string }
+  parsed: { project_code: string; treatment_group: string; replicate: number; read_pair: string }
+}
+
+export interface ConfirmPairBody {
+  project_id: string
+  r1_key: string
+  r2_key: string
+  r1_filename: string
 }
