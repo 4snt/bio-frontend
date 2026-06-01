@@ -682,22 +682,37 @@ export default function ProjectDetailPage() {
 
         {jobs && jobs.length > 0 && (
           <div className="jobs-table">
-            <div className="jobs-table-header" style={{ gridTemplateColumns: '130px 1fr 90px 170px' }}>
+            <div className="jobs-table-header" style={{ gridTemplateColumns: '130px 1fr 90px 140px 36px' }}>
               <span>Job ID</span>
               <span>Tipo</span>
               <span>Status</span>
               <span>Criado em</span>
+              <span />
             </div>
             {jobs.map((j: Job) => (
               <div key={j.id} style={{ borderBottom: '1px solid var(--border)' }}>
                 <div
                   className="jobs-row"
-                  style={{ gridTemplateColumns: '130px 1fr 90px 170px' }}
+                  style={{
+                    gridTemplateColumns: '130px 1fr 90px 140px 36px',
+                    ...(j.status === 'done' ? { cursor: 'pointer' } : {}),
+                  }}
+                  onClick={() => j.status === 'done' && (window.location.href = `/analysis/${j.id}`)}
+                  title={j.status === 'done' ? 'Ver análise completa' : undefined}
                 >
                   <span className="job-id mono" title={j.id}>{j.id.slice(0, 8)}…</span>
                   <span className="job-type mono">{j.job_type}</span>
                   <span>{jobStatusBadge(j.status)}</span>
                   <span className="job-time">{j.created_at ? new Date(j.created_at).toLocaleString('pt-BR') : '—'}</span>
+                  {j.status === 'done' && (
+                    <Link href={`/analysis/${j.id}`}
+                      onClick={e => e.stopPropagation()}
+                      style={{ color: 'var(--cyan)', fontSize: 16, textDecoration: 'none', display: 'flex', alignItems: 'center' }}
+                      title="Ver análise">
+                      →
+                    </Link>
+                  )}
+                  {j.status !== 'done' && <span />}
                 </div>
                 {j.status === 'failed' && j.error_msg && (
                   <div style={{
