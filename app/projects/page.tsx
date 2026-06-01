@@ -26,31 +26,22 @@ function ProjectCard({ p }: { p: Project }) {
   const method = MARKER_METHOD[p.code] ?? 'Análise estatística'
 
   return (
-    <div className="project-card">
-      <div className="project-card-header">
-        <span className="project-code">{p.code}</span>
-        {markerBadge(p.marker_type)}
+    <Link href={`/projects/${p.id}`} style={{ textDecoration: 'none' }}>
+      <div className="project-card" style={{ cursor: 'pointer' }}>
+        <div className="project-card-header">
+          <span className="project-code">{p.code}</span>
+          {markerBadge(p.marker_type)}
+        </div>
+        <div className="project-name">{p.name}</div>
+        <div className="project-meta">{method}</div>
+        <div className="project-footer">
+          {statusBadge(p.status)}
+          <span style={{ fontSize: 12, color: 'var(--cyan)', fontWeight: 600 }}>
+            Abrir →
+          </span>
+        </div>
       </div>
-      <div className="project-name">{p.name}</div>
-      <div className="project-meta">{method}</div>
-      <div className="project-footer">
-        {statusBadge(p.status)}
-        <Link
-          href={`/jobs`}
-          style={{
-            fontSize: 12,
-            color: 'var(--cyan)',
-            textDecoration: 'none',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-          }}
-        >
-          Jobs →
-        </Link>
-      </div>
-    </div>
+    </Link>
   )
 }
 

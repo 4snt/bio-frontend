@@ -125,7 +125,7 @@ export default function DashboardPage() {
                   <span className="text-sm text-muted">{p.status}</span>
                 </div>
                 <Link
-                  href={`/projects`}
+                  href={`/projects/${p.id}`}
                   style={{
                     fontSize: 12,
                     color: 'var(--cyan)',
