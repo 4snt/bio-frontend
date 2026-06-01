@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import useSWR from 'swr'
+import { useSession, signOut } from 'next-auth/react'
 import { api, type WorkerStatus } from '@/lib/api'
 
 const NAV_ITEMS = [
@@ -12,6 +13,10 @@ const NAV_ITEMS = [
   { href: '/jobs',          label: 'Fila de Jobs',   icon: '◈' },
   { href: '/diversity',     label: 'Beta Diversity',  icon: '◎' },
   { href: '/cross-project', label: 'Figura TCC ✦',   icon: '✦' },
+]
+
+const ADMIN_NAV_ITEMS = [
+  { href: '/admin/users', label: 'Usuários', icon: '◉' },
 ]
 
 function fmtSeconds(s: number): string {
@@ -106,9 +111,96 @@ function WorkerPanel() {
   )
 }
 
+function UserPanel() {
+  const { data: session } = useSession()
+
+  // Auto sign-out if session has NotInvited error
+  useEffect(() => {
+    if (session?.error === 'NotInvited') {
+      signOut({ callbackUrl: '/login?error=NotInvited' })
+    }
+  }, [session?.error])
+
+  if (!session) return null
+
+  const name  = session.userName  ?? session.user?.name  ?? 'Usuário'
+  const email = session.userEmail ?? session.user?.email ?? ''
+  const role  = session.role ?? 'researcher'
+
+  return (
+    <div style={{
+      background: 'var(--bg)',
+      border: '1px solid var(--border)',
+      borderRadius: 8,
+      padding: '10px 12px',
+      marginTop: 8,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <span style={{ fontSize: 16, lineHeight: 1 }}>👤</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: 'var(--text)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {name}
+          </div>
+          <div style={{
+            fontSize: 10,
+            color: 'var(--text-3)',
+            fontFamily: 'var(--mono)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {email}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span className={`badge badge-${role === 'admin' ? 'amber' : 'cyan'}`} style={{ fontSize: 10 }}>
+          {role}
+        </span>
+        <button
+          onClick={() => signOut({ callbackUrl: '/login' })}
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--border)',
+            borderRadius: 5,
+            color: 'var(--text-3)',
+            cursor: 'pointer',
+            fontSize: 11,
+            padding: '2px 8px',
+            transition: 'color 150ms ease, border-color 150ms ease',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = 'var(--red)'
+            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.4)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = 'var(--text-3)'
+            e.currentTarget.style.borderColor = 'var(--border)'
+          }}
+        >
+          Sair
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Sidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
   const isActive = (href: string) => href === '/' ? pathname === '/' : pathname.startsWith(href)
+  const isAdmin  = session?.role === 'admin'
 
   return (
     <aside className="sidebar">
@@ -133,10 +225,36 @@ export default function Sidebar() {
             <span className="nav-item-label">{item.label}</span>
           </Link>
         ))}
+
+        {isAdmin && (
+          <>
+            <div style={{
+              fontSize: 10,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--text-3)',
+              padding: '10px 10px 4px',
+              fontWeight: 700,
+            }}>
+              Admin
+            </div>
+            {ADMIN_NAV_ITEMS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`nav-item${isActive(item.href) ? ' active' : ''}`}
+              >
+                <span className="nav-item-icon">{item.icon}</span>
+                <span className="nav-item-label">{item.label}</span>
+              </Link>
+            ))}
+          </>
+        )}
       </nav>
 
       <div className="sidebar-footer">
         <WorkerPanel />
+        <UserPanel />
       </div>
     </aside>
   )

@@ -9,6 +9,24 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+export async function apiFetchWithToken<T>(
+  path: string,
+  token: string,
+  init?: RequestInit
+): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...(init?.headers ?? {}),
+    },
+    ...init,
+  })
+  if (res.status === 401) throw new Error('Unauthorized')
+  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`)
+  return res.json() as Promise<T>
+}
+
 export const api = {
   getProjects:       () => apiFetch<Project[]>('/api/v1/projects/'),
   getProject:        (id: string) => apiFetch<Project>(`/api/v1/projects/${id}`),
@@ -42,6 +60,28 @@ export const api = {
                           method: 'POST',
                           body: JSON.stringify({ project_id: projectId, filename }),
                         }),
+
+  // Auth-required endpoints
+  getMe:           (token: string) =>
+                     apiFetchWithToken<UserProfile>('/api/v1/auth/me', token),
+  getAdminUsers:   (token: string) =>
+                     apiFetchWithToken<AdminUser[]>('/api/v1/admin/users', token),
+  getAdminInvites: (token: string) =>
+                     apiFetchWithToken<Invite[]>('/api/v1/admin/invites', token),
+  createInvite:    (token: string, email: string, role: string) =>
+                     apiFetchWithToken<Invite>('/api/v1/admin/invites', token, {
+                       method: 'POST',
+                       body: JSON.stringify({ email, role }),
+                     }),
+  deleteInvite:    (token: string, id: string) =>
+                     apiFetchWithToken<void>(`/api/v1/admin/invites/${id}`, token, { method: 'DELETE' }),
+  updateUserRole:  (token: string, userId: string, role: string) =>
+                     apiFetchWithToken<void>(`/api/v1/admin/users/${userId}/role`, token, {
+                       method: 'PATCH',
+                       body: JSON.stringify({ role }),
+                     }),
+  deactivateUser:  (token: string, userId: string) =>
+                     apiFetchWithToken<void>(`/api/v1/admin/users/${userId}/deactivate`, token, { method: 'PATCH' }),
 }
 
 export interface Project {
@@ -143,4 +183,29 @@ export interface ArtifactUploadUrl {
   key: string
   bucket: string
   object_key: string
+}
+
+export interface UserProfile {
+  id: string
+  email: string
+  name: string
+  role: string
+  last_login: string | null
+}
+
+export interface AdminUser {
+  id: string
+  email: string
+  name: string
+  role: string
+  is_active: boolean
+  last_login: string | null
+}
+
+export interface Invite {
+  id: string
+  email: string
+  role: string
+  invited_at: string
+  used_at: string | null
 }
