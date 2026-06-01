@@ -35,6 +35,8 @@ export const api = {
                         method: 'POST',
                         body: JSON.stringify({ project_id: projectId, job_type: jobType, payload }),
                       }),
+  getArtifacts:     (projectId: string) =>
+                      apiFetch<ProjectArtifacts>(`/api/v1/samples/${projectId}/artifacts`),
 }
 
 export interface Project {
@@ -123,4 +125,10 @@ export interface ConfirmPairBody {
   r1_key: string
   r2_key: string
   r1_filename: string
+}
+
+export interface ProjectArtifacts {
+  default_key: string
+  available: string[]
+  project_code: string
 }

@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
-import { api, type Project, type Job, type Sample, type PresignedPair } from '@/lib/api'
+import { api, type Project, type Job, type Sample, type PresignedPair, type ProjectArtifacts } from '@/lib/api'
 
 const ANALYSIS_TYPES = [
   'deseq2', 'ancombc2', 'maaslin2', 'spieceasi',
@@ -66,11 +66,26 @@ export default function ProjectDetailPage() {
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Enqueue state
+  // Artefatos disponíveis no MinIO para este projeto
+  const { data: artifacts } = useSWR<ProjectArtifacts>(
+    id ? ['artifacts', id] : null,
+    () => api.getArtifacts(id),
+    { refreshInterval: 30000 }
+  )
+
+  // Enqueue state — auto-preenche com o caminho padrão quando disponível
   const [showEnqueue, setShowEnqueue] = useState(false)
   const [selectedJobType, setSelectedJobType] = useState(ANALYSIS_TYPES[0])
   const [phyloseqKey, setPhyloseqKey] = useState('')
   const [enqueueing, setEnqueueing] = useState(false)
+
+  // Preenche automaticamente quando artifacts carrega ou enqueue panel abre
+  function openEnqueue() {
+    if (artifacts?.default_key && !phyloseqKey) {
+      setPhyloseqKey(artifacts.default_key)
+    }
+    setShowEnqueue(v => !v)
+  }
 
   async function handleR1Change(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -369,7 +384,7 @@ export default function ProjectDetailPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <span className="section-title" style={{ flex: 1 }}>Analises</span>
           <button
-            onClick={() => setShowEnqueue(v => !v)}
+            onClick={openEnqueue}
             style={{
               marginLeft: 16,
               padding: '6px 14px',
@@ -415,39 +430,62 @@ export default function ProjectDetailPage() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>
-                  phyloseq_key (opcional)
+              <div style={{ flex: 1, minWidth: 280 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>
+                  <span>Arquivo phyloseq</span>
+                  {artifacts && (
+                    <span style={{
+                      fontSize: 10, fontFamily: 'var(--mono)', padding: '1px 6px', borderRadius: 4,
+                      background: artifacts.available.length > 0 ? 'rgba(16,212,138,0.12)' : 'rgba(245,158,11,0.12)',
+                      color: artifacts.available.length > 0 ? 'var(--green)' : 'var(--amber)',
+                      border: `1px solid ${artifacts.available.length > 0 ? 'rgba(16,212,138,0.25)' : 'rgba(245,158,11,0.25)'}`,
+                    }}>
+                      {artifacts.available.length > 0 ? `${artifacts.available.length} arquivo(s) no MinIO` : 'MinIO vazio — execute QIIME2 primeiro'}
+                    </span>
+                  )}
                 </label>
-                <input
-                  type="text"
-                  value={phyloseqKey}
-                  onChange={e => setPhyloseqKey(e.target.value)}
-                  placeholder="pipeline-artifacts/..."
-                  style={{
-                    background: 'var(--surface-2)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    color: 'var(--text)',
-                    padding: '6px 10px',
-                    fontSize: 13,
-                    fontFamily: 'var(--mono)',
-                    width: 280,
-                  }}
-                />
+
+                {/* Dropdown se existirem arquivos, input manual caso contrário */}
+                {artifacts && artifacts.available.length > 0 ? (
+                  <select
+                    value={phyloseqKey}
+                    onChange={e => setPhyloseqKey(e.target.value)}
+                    style={{
+                      width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)',
+                      borderRadius: 8, color: 'var(--text)', padding: '6px 10px',
+                      fontSize: 12, fontFamily: 'var(--mono)',
+                    }}
+                  >
+                    <option value="">— selecionar arquivo —</option>
+                    {artifacts.available.map(k => (
+                      <option key={k} value={k}>{k.replace('pipeline-artifacts/', '')}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={phyloseqKey}
+                    onChange={e => setPhyloseqKey(e.target.value)}
+                    placeholder={artifacts?.default_key ?? 'pipeline-artifacts/...'}
+                    style={{
+                      width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)',
+                      borderRadius: 8, color: 'var(--text)', padding: '6px 10px',
+                      fontSize: 12, fontFamily: 'var(--mono)',
+                    }}
+                  />
+                )}
               </div>
+
               <button
                 onClick={handleEnqueue}
-                disabled={enqueueing}
+                disabled={enqueueing || !phyloseqKey.trim()}
                 style={{
+                  alignSelf: 'flex-end',
                   padding: '7px 18px',
-                  background: enqueueing ? 'var(--surface-2)' : 'var(--green)',
-                  color: enqueueing ? 'var(--text-3)' : '#050d1a',
-                  border: 'none',
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: enqueueing ? 'not-allowed' : 'pointer',
+                  background: enqueueing || !phyloseqKey.trim() ? 'var(--surface-2)' : 'var(--green)',
+                  color: enqueueing || !phyloseqKey.trim() ? 'var(--text-3)' : '#050d1a',
+                  border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                  cursor: enqueueing || !phyloseqKey.trim() ? 'not-allowed' : 'pointer',
                 }}
               >
                 {enqueueing ? 'Enfileirando...' : 'Enfileirar'}
