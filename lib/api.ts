@@ -82,14 +82,35 @@ export const api = {
                      }),
   deactivateUser:  (token: string, userId: string) =>
                      apiFetchWithToken<void>(`/api/v1/admin/users/${userId}/deactivate`, token, { method: 'PATCH' }),
+
+  createProject: (token: string, body: CreateProjectBody) =>
+                   apiFetchWithToken<{ id: string }>('/api/v1/projects/', token, {
+                     method: 'POST',
+                     body: JSON.stringify(body),
+                   }),
+}
+
+export interface AnalysisConfig {
+  analysis_type: string
+  charts: string[]
 }
 
 export interface Project {
   id: string
   code: string
   name: string
+  description: string
   marker_type: '16S' | 'ITS'
   status: string
+  analyses: AnalysisConfig[]
+}
+
+export interface CreateProjectBody {
+  code: string
+  name: string
+  description: string
+  marker_type: '16S' | 'ITS'
+  analyses: AnalysisConfig[]
 }
 
 export interface Job {

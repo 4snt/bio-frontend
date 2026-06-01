@@ -2,13 +2,9 @@
 
 import useSWR from 'swr'
 import Link from 'next/link'
+import { useSession } from 'next-auth/react'
 import { api, type Project } from '@/lib/api'
 
-const MARKER_METHOD: Record<string, string> = {
-  INOVAHERB:  'ANCOM-BC2 · Fatorial',
-  'Pós-Fogo': 'MaAsLin2 · Série Temporal',
-  Biorremediação: 'SpiecEasi · Correlação',
-}
 
 function markerBadge(marker: string) {
   if (marker === 'ITS') return <span className="badge badge-purple">ITS</span>
@@ -23,7 +19,7 @@ function statusBadge(status: string) {
 }
 
 function ProjectCard({ p }: { p: Project }) {
-  const method = MARKER_METHOD[p.code] ?? 'Análise estatística'
+  const analysisLabels = p.analyses?.map(a => a.analysis_type.toUpperCase()).join(' · ') || 'Análise estatística'
 
   return (
     <Link href={`/projects/${p.id}`} style={{ textDecoration: 'none' }}>
@@ -33,7 +29,23 @@ function ProjectCard({ p }: { p: Project }) {
           {markerBadge(p.marker_type)}
         </div>
         <div className="project-name">{p.name}</div>
-        <div className="project-meta">{method}</div>
+        {p.description && (
+          <div style={{
+            fontSize: 11,
+            color: 'var(--text-3)',
+            marginTop: 4,
+            lineHeight: 1.45,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}>
+            {p.description}
+          </div>
+        )}
+        <div className="project-meta" style={{ marginTop: p.description ? 6 : undefined }}>
+          {analysisLabels}
+        </div>
         <div className="project-footer">
           {statusBadge(p.status)}
           <span style={{ fontSize: 12, color: 'var(--cyan)', fontWeight: 600 }}>
@@ -47,14 +59,39 @@ function ProjectCard({ p }: { p: Project }) {
 
 export default function ProjectsPage() {
   const { data: projects, error, isLoading } = useSWR('projects', api.getProjects)
+  const { data: session } = useSession()
+  const isAdmin = session?.role === 'admin'
 
   return (
     <>
-      <div className="page-header">
-        <h1 className="page-title">Projetos</h1>
-        <p className="page-subtitle">
-          Projetos de análise genômica ativos na plataforma
-        </p>
+      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <h1 className="page-title">Projetos</h1>
+          <p className="page-subtitle">
+            Projetos de análise genômica ativos na plataforma
+          </p>
+        </div>
+        {isAdmin && (
+          <Link
+            href="/admin/projects/new"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'var(--cyan)',
+              color: '#050d1a',
+              borderRadius: 7,
+              fontWeight: 700,
+              fontSize: 13,
+              padding: '8px 16px',
+              textDecoration: 'none',
+              flexShrink: 0,
+              marginTop: 4,
+            }}
+          >
+            + Novo Projeto
+          </Link>
+        )}
       </div>
 
       {isLoading && (

@@ -17,11 +17,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return !!profile?.email?.endsWith(ALLOWED_DOMAIN)
     },
     async jwt({ token, account }) {
-      if (account?.id_token) {
+      if (account?.access_token) {
         const res = await fetch(`${API}/api/v1/auth/google`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id_token: account.id_token }),
+          body: JSON.stringify({ access_token: account.access_token }),
         })
         if (res.ok) {
           const data = await res.json()

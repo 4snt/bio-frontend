@@ -10,18 +10,17 @@ Next.js 14 (App Router) com visualizações científicas interativas via Plotly.
 
 | Componente | Status | Detalhe |
 |---|---|---|
-| Estrutura App Router (6 rotas) | ✅ Pronto | `/projects`, `/analysis/[id]`, `/network/[id]`, `/diversity`, `/cross-project`, `/jobs` |
-| `lib/api.ts` — cliente tipado REST | ✅ Pronto | Wrapper sobre `fetch` com tipagem para todos os endpoints |
-| `lib/websocket.ts` — cliente WS | ✅ Pronto | Conecta no `/api/v1/jobs/ws/status`, callbacks por job |
-| Página `/projects` | 🔧 Stub | Rota existe, UI vazia — aguarda dados reais da API |
-| Página `/analysis/[id]` (volcano / MA) | 🔧 Stub | Componente `Plot` dinâmico declarado, sem dados |
-| Página `/network/[id]` (Cytoscape) | 🔧 Stub | Wrapper Cytoscape declarado, sem dados |
-| Página `/diversity` (PCoA) | 🔧 Stub | Rota criada, componente pendente |
-| Página `/cross-project` (6 PCoAs) | 🔧 Stub | Layout grid 3×2 definido, aguarda `CrossProjectFigureReady` |
-| Página `/jobs` (fila em tempo real) | 🔧 Stub | WebSocket conectado, UI pendente |
-| Componentes `charts/` e `network/` | 🔧 A criar | Wrappers Plotly e Cytoscape reutilizáveis |
-
-> Todas as páginas têm estrutura de rota e conexão com a API definidas. O próximo passo é preencher os componentes de visualização conforme os dados de cada análise ficam disponíveis.
+| Estrutura App Router | ✅ Pronto | `/projects`, `/analysis/[id]`, `/network/[id]`, `/diversity`, `/cross-project`, `/jobs` |
+| Autenticação (NextAuth v5) | ✅ Pronto | Google OAuth, proteção de rotas e sessões |
+| Painel Admin | ✅ Pronto | Gerenciamento de projetos e usuários (`/admin/projects`, `/admin/users`) |
+| `lib/api.ts` — cliente tipado REST | ✅ Pronto | Wrapper sobre `fetch` com interceptação de tokens e tipagem completa |
+| `lib/websocket.ts` — cliente WS | ✅ Pronto | Conecta no `/api/v1/jobs/ws/status`, atualizações em tempo real |
+| Página `/projects` | ✅ Pronto | Listagem dinâmica com badges de status e marcador |
+| Página `/analysis/[id]` (volcano / MA) | ✅ Pronto | Plots interativos com Plotly + tabela de DEGs filtrável |
+| Página `/jobs` (fila em tempo real) | ✅ Pronto | Dashboard com progresso, fila e histórico recente |
+| Artifacts & Upload | ✅ Pronto | Upload de FASTQ/RDS e auto-fill via MinIO (phyloseq) |
+| Página `/network/[id]` (Cytoscape) | 🔧 Em progresso | Integração com SpiecEasi/NetCoMi pendente |
+| Página `/diversity` (PCoA) | 🔧 Em progresso | Alpha/Beta diversity — aguarda integração com backend |
 
 ---
 
@@ -29,7 +28,7 @@ Next.js 14 (App Router) com visualizações científicas interativas via Plotly.
 
 Frontend para acompanhar e visualizar as análises de três projetos paralelos (INOVAHERB, Pós-Fogo, Biorremediação). Consome a API REST do [bio-platform](../bio-platform) e recebe atualizações em tempo real via WebSocket.
 
-**Regra de ouro:** toda visualização (PCoA, volcano plot, rede microbiana, heatmap) é gerada aqui — o backend R nunca produz figuras.
+**Segurança:** Acesso restrito via Google OAuth. Usuários `admin` podem criar projetos e gerenciar permissões.
 
 ---
 
@@ -38,15 +37,19 @@ Frontend para acompanhar e visualizar as análises de três projetos paralelos (
 | Lib | Uso |
 |-----|-----|
 | Next.js 14 App Router | Roteamento e SSR |
+| NextAuth.js v5 | Autenticação (Auth.js) |
 | Plotly.js | PCoA, volcano plot, MA plot, heatmaps |
-| Cytoscape.js | Redes microbianas interativas (SpiecEasi) |
-| Recharts | Barras de progresso, histórico de jobs |
+| Cytoscape.js | Redes microbianas interativas |
+| Recharts | Barras de progresso e estatísticas de jobs |
 | SWR | Cache e revalidação de dados da API |
 | WebSocket nativo | Status de jobs em tempo real |
 
 ---
 
 ## Rodar localmente
+
+1. Configure as credenciais do Google Cloud Console para o NextAuth.
+2. Copie o `.env.example`:
 
 ```bash
 cp .env.example .env.local
@@ -67,15 +70,17 @@ npm start
 
 ## Rotas
 
-| Rota | O que mostra | Biblioteca |
+| Rota | O que mostra | Proteção |
 |------|-------------|-----------|
 | `/` | Home com navegação | — |
-| `/projects` | Lista dos 3 projetos com status | SWR |
-| `/analysis/[id]` | Volcano plot, MA plot, tabela de DEGs | Plotly.js |
-| `/network/[id]` | Rede microbiana interativa (SpiecEasi/NetCoMi) | Cytoscape.js |
-| `/diversity` | PCoA beta diversity, alpha diversity | Plotly.js |
-| `/cross-project` | 6 PCoAs — figura central do TCC | Plotly.js subplots |
-| `/jobs` | Fila de análises em tempo real | WebSocket + Recharts |
+| `/login` | Página de autenticação Google | — |
+| `/projects` | Lista de projetos com status | Auth |
+| `/analysis/[id]` | Volcano plot, MA plot, tabela de DEGs | Auth |
+| `/jobs` | Fila de análises e progresso em tempo real | Auth |
+| `/admin/projects` | Gerenciamento de projetos (Novo/Editar) | Admin |
+| `/admin/users` | Gestão de permissões de usuários | Admin |
+| `/network/[id]` | Rede microbiana interativa | Auth |
+| `/diversity` | PCoA beta diversity, alpha diversity | Auth |
 
 ---
 
@@ -84,21 +89,20 @@ npm start
 ```
 bio-frontend/
 ├── app/                    → páginas (App Router)
-│   ├── layout.tsx
-│   ├── page.tsx
-│   ├── projects/
-│   ├── analysis/[id]/
-│   ├── network/[id]/
-│   ├── diversity/
-│   ├── cross-project/
-│   └── jobs/
+│   ├── admin/              → painel administrativo
+│   ├── analysis/[id]/      → detalhe da análise estatística
+│   ├── projects/           → catálogo de projetos
+│   ├── jobs/               → monitoramento de jobs
+│   └── ...
+├── components/
+│   ├── ui/                 → Shell, Sidebar, Providers
+│   └── charts/             → Wrappers Plotly e Recharts
 ├── lib/
-│   ├── api.ts              → cliente tipado para a API REST
-│   └── websocket.ts        → conexão WebSocket para status de jobs
-└── components/             → (a criar conforme necessário)
-    ├── charts/             → wrappers Plotly reutilizáveis
-    ├── network/            → wrappers Cytoscape
-    └── ui/                 → componentes genéricos
+│   ├── api.ts              → cliente REST tipado
+│   ├── websocket.ts        → gerenciador de WebSocket
+│   └── analyses-catalog.ts → definições de tipos de análises
+├── auth.ts                 → configuração do NextAuth v5
+└── middleware.ts           → proteção de rotas por sessão
 ```
 
 ---
@@ -161,28 +165,17 @@ export function VolcanoPlot({ degs }: { degs: DegResult[] }) {
 
 ---
 
-## Figura do TCC — 6 PCoAs
-
-A rota `/cross-project` monta o painel final automaticamente quando o evento `CrossProjectFigureReady` chega via WebSocket. O layout é um grid 3×2:
-
-```
-INOVAHERB     │ Bray-Curtis PCoA  │ UniFrac PCoA
-Pós-Fogo      │ Bray-Curtis PCoA  │ UniFrac PCoA
-Biorremediação│ Bray-Curtis PCoA  │ UniFrac PCoA
-```
-
-Implementado em `app/cross-project/page.tsx` com `Plotly subplots (grid: {rows:3, columns:2})`.
-
----
-
 ## Variáveis de ambiente
 
 ```bash
+NEXTAUTH_SECRET=...                         # Segredo para sessões
+NEXTAUTH_URL=http://localhost:3000          # URL base do site
+GOOGLE_CLIENT_ID=...                        # OAuth Client ID
+GOOGLE_CLIENT_SECRET=...                    # OAuth Client Secret
+
 NEXT_PUBLIC_API_URL=http://localhost:8000   # URL da API REST
 NEXT_PUBLIC_WS_URL=ws://localhost:8000      # URL do WebSocket
 ```
-
-Em produção, apontam para o ingress do k3s (`http://bio.local`).
 
 ---
 
@@ -194,5 +187,3 @@ A imagem Docker é multi-stage (builder → runner) com output `standalone`:
 docker build -t ghcr.io/org/bio-frontend:latest .
 docker push ghcr.io/org/bio-frontend:latest
 ```
-
-O manifest k3s do frontend fica em `bio-platform/infra/manifests/` junto com os demais serviços.

@@ -16,7 +16,8 @@ const NAV_ITEMS = [
 ]
 
 const ADMIN_NAV_ITEMS = [
-  { href: '/admin/users', label: 'Usuários', icon: '◉' },
+  { href: '/admin/projects/new', label: 'Novo Projeto', icon: '⊕' },
+  { href: '/admin/users',        label: 'Usuários',     icon: '◉' },
 ]
 
 function fmtSeconds(s: number): string {
