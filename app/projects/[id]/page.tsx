@@ -474,22 +474,45 @@ export default function ProjectDetailPage() {
 
         {jobs && jobs.length > 0 && (
           <div className="jobs-table">
-            <div className="jobs-table-header" style={{ gridTemplateColumns: '140px 1fr 100px 200px' }}>
+            <div className="jobs-table-header" style={{ gridTemplateColumns: '130px 1fr 90px 170px' }}>
               <span>Job ID</span>
               <span>Tipo</span>
               <span>Status</span>
               <span>Criado em</span>
             </div>
             {jobs.map((j: Job) => (
-              <div
-                key={j.id}
-                className="jobs-row"
-                style={{ gridTemplateColumns: '140px 1fr 100px 200px' }}
-              >
-                <span className="job-id mono" title={j.id}>{j.id.slice(0, 8)}…</span>
-                <span className="job-type mono">{j.job_type}</span>
-                <span>{jobStatusBadge(j.status)}</span>
-                <span className="job-time">{j.created_at ? new Date(j.created_at).toLocaleString('pt-BR') : '—'}</span>
+              <div key={j.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                <div
+                  className="jobs-row"
+                  style={{ gridTemplateColumns: '130px 1fr 90px 170px' }}
+                >
+                  <span className="job-id mono" title={j.id}>{j.id.slice(0, 8)}…</span>
+                  <span className="job-type mono">{j.job_type}</span>
+                  <span>{jobStatusBadge(j.status)}</span>
+                  <span className="job-time">{j.created_at ? new Date(j.created_at).toLocaleString('pt-BR') : '—'}</span>
+                </div>
+                {j.status === 'failed' && j.error_msg && (
+                  <div style={{
+                    padding: '6px 12px 10px 12px',
+                    background: 'rgba(239,68,68,0.05)',
+                    borderTop: '1px solid rgba(239,68,68,0.15)',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 8,
+                  }}>
+                    <span style={{ color: 'var(--red)', fontSize: 11, marginTop: 1 }}>✗</span>
+                    <span style={{
+                      fontFamily: 'var(--mono)',
+                      fontSize: 11,
+                      color: 'var(--red)',
+                      opacity: 0.85,
+                      wordBreak: 'break-all',
+                      lineHeight: 1.5,
+                    }}>
+                      {j.error_msg}
+                    </span>
+                  </div>
+                )}
               </div>
             ))}
           </div>
