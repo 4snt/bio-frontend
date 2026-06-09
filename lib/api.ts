@@ -38,28 +38,33 @@ export const api = {
     return apiFetch<DegResult[]>(`/api/v1/analysis/search/degs?${params}`)
   },
   getSamples:       (projectId: string) => apiFetch<Sample[]>(`/api/v1/samples/${projectId}`),
-  getPresignedPair: (r1filename: string, projectId: string) =>
-                      apiFetch<PresignedPair>('/api/v1/samples/presigned-pair', {
-                        method: 'POST',
-                        body: JSON.stringify({ r1_filename: r1filename, project_id: projectId }),
-                      }),
-  confirmPair:      (body: ConfirmPairBody) =>
-                      apiFetch<{ sample_id: string }>('/api/v1/samples/confirm-pair', {
-                        method: 'POST',
-                        body: JSON.stringify(body),
-                      }),
-  enqueueJob:       (projectId: string, jobType: string, payload: Record<string, string>) =>
+  uploadFastqPair:  (r1: File, r2: File, projectId: string) => {
+                      const form = new FormData()
+                      form.append('r1', r1)
+                      form.append('r2', r2)
+                      form.append('project_id', projectId)
+                      return fetch(`${API_URL}/api/v1/samples/upload-pair`, { method: 'POST', body: form })
+                        .then(res => { if (!res.ok) throw new Error(`API error ${res.status}`); return res.json() }) as Promise<UploadPairResult>
+                    },
+  uploadArtifact:   (file: File, projectId: string) => {
+                      const form = new FormData()
+                      form.append('file', file)
+                      form.append('project_id', projectId)
+                      return fetch(`${API_URL}/api/v1/samples/artifact-upload`, { method: 'POST', body: form })
+                        .then(res => { if (!res.ok) throw new Error(`API error ${res.status}`); return res.json() }) as Promise<ArtifactUploadResult>
+                    },
+  enqueueJob:       (projectId: string, jobType: string, phyloseqOid?: number) =>
                       apiFetch<{ job_id: string }>('/api/v1/jobs/enqueue', {
                         method: 'POST',
-                        body: JSON.stringify({ project_id: projectId, job_type: jobType, payload }),
-                      }),
-  getArtifacts:       (projectId: string) =>
-                        apiFetch<ProjectArtifacts>(`/api/v1/samples/${projectId}/artifacts`),
-  getArtifactUploadUrl: (projectId: string, filename: string) =>
-                        apiFetch<ArtifactUploadUrl>('/api/v1/samples/artifact-upload-url', {
-                          method: 'POST',
-                          body: JSON.stringify({ project_id: projectId, filename }),
+                        body: JSON.stringify({
+                          project_id: projectId,
+                          job_type: jobType,
+                          payload: {},
+                          phyloseq_oid: phyloseqOid ?? null,
                         }),
+                      }),
+  getArtifacts:     (projectId: string) =>
+                      apiFetch<ProjectArtifacts>(`/api/v1/samples/${projectId}/artifacts`),
 
   // Auth-required endpoints
   getMe:           (token: string) =>
@@ -169,14 +174,15 @@ export interface Sample {
   filename: string
   treatment_group: string
   replicate: number
-  fastq_r1_key: string
-  fastq_r2_key: string
+  fastq_r1_oid: number
+  fastq_r2_oid: number
   created_at: string
 }
 
-export interface PresignedPair {
-  r1: { upload_url: string; key: string }
-  r2: { upload_url: string; key: string }
+export interface UploadPairResult {
+  sample_id: string
+  treatment_group: string
+  replicate: number
   parsed: {
     marker_type: string
     sample_number: string
@@ -186,24 +192,14 @@ export interface PresignedPair {
   }
 }
 
-export interface ConfirmPairBody {
+export interface ArtifactUploadResult {
+  oid: number
   project_id: string
-  r1_key: string
-  r2_key: string
-  r1_filename: string
 }
 
 export interface ProjectArtifacts {
-  default_key: string
-  available: string[]
+  available: Array<{ job_id: string; phyloseq_oid: number; created_at: string | null }>
   project_code: string
-}
-
-export interface ArtifactUploadUrl {
-  upload_url: string
-  key: string
-  bucket: string
-  object_key: string
 }
 
 export interface UserProfile {
