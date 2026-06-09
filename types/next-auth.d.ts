@@ -7,5 +7,6 @@ declare module "next-auth" {
     error?: string
     userEmail?: string
     userName?: string
+    userPicture?: string | null
   }
 }
