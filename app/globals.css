@@ -685,3 +685,14 @@ body {
 .text-3 { color: var(--text-3); }
 .font-mono { font-family: var(--mono); }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Swagger UI — reset para integrar com o tema ─────────────────── */
+.swagger-ui { font-family: var(--sans) !important; }
+.swagger-ui .topbar { display: none; }
+.swagger-ui .info { padding: 16px 20px 0; }
+.swagger-ui .info .title { font-size: 22px; color: var(--cyan) !important; }
+.swagger-ui .info p,
+.swagger-ui .info li { color: var(--text-2) !important; }
+.swagger-ui .opblock-tag { color: var(--text) !important; border-color: var(--border) !important; }
+.swagger-ui .opblock .opblock-summary-description { color: var(--text-3) !important; }
+.swagger-ui section.models { display: none; }

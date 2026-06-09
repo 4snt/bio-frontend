@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: '/jobs',          label: 'Fila de Jobs',   icon: '◈' },
   { href: '/diversity',     label: 'Beta Diversity',  icon: '◎' },
   { href: '/cross-project', label: 'Figura TCC ✦',   icon: '✦' },
+  { href: '/docs',          label: 'API Docs',        icon: '◫' },
 ]
 
 const ADMIN_NAV_ITEMS = [
