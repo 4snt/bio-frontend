@@ -334,12 +334,31 @@ export default function AdminUsersPage() {
                 }}
               >
                 {/* Name + email */}
-                <div>
-                  <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 500 }}>
-                    {user.name}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--mono)", marginTop: 1 }}>
-                    {user.email}
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {user.avatar_url ? (
+                    <img
+                      src={user.avatar_url}
+                      alt={user.name}
+                      referrerPolicy="no-referrer"
+                      style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", border: "1px solid var(--border)", flexShrink: 0 }}
+                    />
+                  ) : (
+                    <span style={{
+                      width: 28, height: 28, borderRadius: "50%",
+                      background: "var(--surface-2)", border: "1px solid var(--border)",
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 12, fontWeight: 700, color: "var(--text-3)", flexShrink: 0,
+                    }}>
+                      {user.name.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  <div>
+                    <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 500 }}>
+                      {user.name}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--mono)", marginTop: 1 }}>
+                      {user.email}
+                    </div>
                   </div>
                 </div>
 
