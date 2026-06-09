@@ -52,6 +52,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.error       = token.error as string | undefined
       session.userEmail   = token.userEmail as string
       session.userName    = token.userName as string
+      // token.picture is populated by NextAuth from Google profile automatically
+      session.userPicture = (token.picture as string | undefined) ?? null
       return session
     },
   },
