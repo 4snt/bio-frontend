@@ -48,9 +48,47 @@ function ProjectCard({ p }: { p: Project }) {
         </div>
         <div className="project-footer">
           {statusBadge(p.status)}
-          <span style={{ fontSize: 12, color: 'var(--cyan)', fontWeight: 600 }}>
-            Abrir →
-          </span>
+          {p.author ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              {p.author.avatar_url ? (
+                <img
+                  src={p.author.avatar_url}
+                  alt={p.author.name}
+                  referrerPolicy="no-referrer"
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '1px solid var(--border)',
+                  }}
+                />
+              ) : (
+                <span style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 9,
+                  fontWeight: 700,
+                  color: 'var(--text-3)',
+                }}>
+                  {p.author.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+              <span style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                {p.author.name.split(' ')[0]}
+              </span>
+            </div>
+          ) : (
+            <span style={{ fontSize: 12, color: 'var(--cyan)', fontWeight: 600 }}>
+              Abrir →
+            </span>
+          )}
         </div>
       </div>
     </Link>

@@ -141,7 +141,36 @@ function UserPanel() {
       gap: 6,
     }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-        <span style={{ fontSize: 16, lineHeight: 1 }}>👤</span>
+        {(session as any).userPicture ? (
+          <img
+            src={(session as any).userPicture}
+            alt={name}
+            referrerPolicy="no-referrer"
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: '50%',
+              objectFit: 'cover',
+              flexShrink: 0,
+              border: '1px solid var(--border)',
+            }}
+          />
+        ) : (
+          <span style={{
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 14,
+            flexShrink: 0,
+          }}>
+            {name.charAt(0).toUpperCase()}
+          </span>
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
             fontSize: 12,
@@ -210,7 +239,7 @@ export default function Sidebar() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div className="sidebar-logo">
             <span className="sidebar-logo-icon">🧬</span>
-            <div className="sidebar-logo-text glow-cyan">Bio-Platform</div>
+            <div className="sidebar-logo-text glow-cyan">Rizoma</div>
           </div>
           <ThemeToggle />
         </div>
