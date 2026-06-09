@@ -65,6 +65,22 @@ export const api = {
                       }),
   getArtifacts:     (projectId: string) =>
                       apiFetch<ProjectArtifacts>(`/api/v1/samples/${projectId}/artifacts`),
+  getFastqSources:  () =>
+                      apiFetch<{ sources: FastqSourceInfo[] }>('/api/v1/samples/fastq-sources'),
+  sraPreview:       (accession: string, source = 'sra') =>
+                      apiFetch<SraMetadata>(`/api/v1/samples/sra-preview?accession=${encodeURIComponent(accession)}&source=${source}`),
+  importSra:        (body: SraImportBody) =>
+                      apiFetch<SraImportResult>('/api/v1/samples/import-sra', {
+                        method: 'POST',
+                        body: JSON.stringify(body),
+                      }),
+  getSraRuns:       (projectId: string) =>
+                      apiFetch<SraRunsResult>(`/api/v1/projects/${projectId}/sra-runs`),
+  enrichTaxonomy:   (names: string[]) =>
+                      apiFetch<TaxonomyEnrichResult>('/api/v1/analysis/taxonomy/enrich', {
+                        method: 'POST',
+                        body: JSON.stringify({ names }),
+                      }),
 
   // Auth-required endpoints
   getMe:           (token: string) =>
@@ -100,6 +116,11 @@ export interface AnalysisConfig {
   charts: string[]
 }
 
+export interface ProjectAuthor {
+  name: string
+  avatar_url: string | null
+}
+
 export interface Project {
   id: string
   code: string
@@ -107,6 +128,8 @@ export interface Project {
   description: string
   marker_type: '16S' | 'ITS'
   status: string
+  bioproject_accession: string | null
+  author: ProjectAuthor | null
   analyses: AnalysisConfig[]
 }
 
@@ -115,7 +138,69 @@ export interface CreateProjectBody {
   name: string
   description: string
   marker_type: '16S' | 'ITS'
+  bioproject_accession?: string
   analyses: AnalysisConfig[]
+}
+
+export interface SraMetadata {
+  accession: string
+  sample_name: string
+  library_strategy: string
+  library_layout: string
+  spots: string
+  bases: string
+  bioproject: string
+  biosample: string
+  organism: string
+}
+
+export interface FastqSourceInfo {
+  key: string
+  label: string
+}
+
+export interface SraImportBody {
+  accession: string
+  project_id: string
+  treatment_group: string
+  replicate: number
+  source?: string
+}
+
+export interface SraImportResult {
+  sample_id: string
+  accession: string
+  treatment_group: string
+  replicate: number
+  sra_metadata: SraMetadata
+}
+
+export interface SraRun {
+  accession: string
+  sample_name: string
+  library_layout: string
+  library_strategy: string
+  spots: string
+  bases: string
+  biosample: string
+}
+
+export interface SraRunsResult {
+  bioproject: string | null
+  runs: SraRun[]
+}
+
+export interface TaxonomyResult {
+  query: string
+  taxid: number | null
+  name: string | null
+  rank: string | null
+  lineage: string | null
+}
+
+export interface TaxonomyEnrichResult {
+  results: TaxonomyResult[]
+  total: number
 }
 
 export interface Job {
@@ -207,6 +292,7 @@ export interface UserProfile {
   email: string
   name: string
   role: string
+  avatar_url: string | null
   last_login: string | null
 }
 
@@ -216,6 +302,7 @@ export interface AdminUser {
   name: string
   role: string
   is_active: boolean
+  avatar_url: string | null
   last_login: string | null
 }
 

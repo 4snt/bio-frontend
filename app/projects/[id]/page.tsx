@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
-import { api, type Project, type Job, type Sample, type ProjectArtifacts } from '@/lib/api'
+import { api, type Project, type Job, type Sample, type ProjectArtifacts, type SraMetadata, type SraRunsResult, type FastqSourceInfo } from '@/lib/api'
 
 const ANALYSIS_TYPES = [
   'deseq2', 'ancombc2', 'maaslin2', 'spieceasi',
@@ -56,6 +56,12 @@ export default function ProjectDetailPage() {
     id ? ['artifacts', id] : null,
     () => api.getArtifacts(id),
     { refreshInterval: 30000 }
+  )
+
+  const { data: sraRuns } = useSWR<SraRunsResult>(
+    id && project?.bioproject_accession ? ['sra-runs', id] : null,
+    () => api.getSraRuns(id),
+    { revalidateOnFocus: false }
   )
 
   // Upload FASTQ
@@ -123,6 +129,70 @@ export default function ProjectDetailPage() {
     }
   }
 
+  // SRA Import
+  const [showSraImport, setShowSraImport]     = useState(false)
+  const [sraAccession, setSraAccession]       = useState('')
+  const [sraSource, setSraSource]             = useState('sra')
+  const [sraMeta, setSraMeta]                 = useState<SraMetadata | null>(null)
+  const [sraTreatment, setSraTreatment]       = useState('')
+  const [sraReplicate, setSraReplicate]       = useState(1)
+  const [sraVerifying, setSraVerifying]       = useState(false)
+  const [sraImporting, setSraImporting]       = useState(false)
+  const [sraStatus, setSraStatus]             = useState('')
+
+  const { data: fastqSources } = useSWR<{ sources: FastqSourceInfo[] }>(
+    'fastq-sources',
+    () => api.getFastqSources(),
+    { revalidateOnFocus: false }
+  )
+
+  async function handleSraVerify() {
+    const acc = sraAccession.trim().toUpperCase()
+    if (!acc) return
+    setSraVerifying(true)
+    setSraMeta(null)
+    setSraStatus('')
+    try {
+      const meta = await api.sraPreview(acc, sraSource)
+      setSraMeta(meta)
+      if (meta.sample_name) setSraTreatment(meta.sample_name)
+    } catch (e: unknown) {
+      setSraStatus(e instanceof Error ? e.message : 'Accession não encontrado.')
+    } finally {
+      setSraVerifying(false)
+    }
+  }
+
+  async function handleSraImport() {
+    if (!sraMeta || !id) return
+    setSraImporting(true)
+    const sourceLabel = fastqSources?.sources.find(s => s.key === sraSource)?.label ?? sraSource
+    setSraStatus(`baixando FASTQs via ${sourceLabel}...`)
+    try {
+      await api.importSra({
+        accession:       sraMeta.accession,
+        project_id:      id,
+        treatment_group: sraTreatment,
+        replicate:       sraReplicate,
+        source:          sraSource,
+      })
+      setSraStatus('concluido')
+      mutate(['samples', id])
+      setTimeout(() => {
+        setSraMeta(null)
+        setSraAccession('')
+        setSraStatus('')
+        setSraTreatment('')
+        setSraReplicate(1)
+        setShowSraImport(false)
+      }, 1500)
+    } catch (e: unknown) {
+      setSraStatus(e instanceof Error ? e.message : 'Erro ao importar. Tente novamente.')
+    } finally {
+      setSraImporting(false)
+    }
+  }
+
   // Enqueue
   const [showEnqueue, setShowEnqueue] = useState(false)
   const [selectedJobType, setSelectedJobType] = useState(ANALYSIS_TYPES[0])
@@ -181,25 +251,256 @@ export default function ProjectDetailPage() {
           <div className="skeleton" style={{ height: 28, width: 240 }} />
         )}
         {project && (
-          <p className="page-subtitle" style={{ marginTop: 4 }}>{project.name}</p>
+          <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <p className="page-subtitle" style={{ margin: 0 }}>{project.name}</p>
+            {project.author && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: 'var(--text-3)', fontSize: 12 }}>·</span>
+                {project.author.avatar_url ? (
+                  <img
+                    src={project.author.avatar_url}
+                    alt={project.author.name}
+                    referrerPolicy="no-referrer"
+                    style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)' }}
+                  />
+                ) : (
+                  <span style={{
+                    width: 20, height: 20, borderRadius: '50%',
+                    background: 'var(--surface-2)', border: '1px solid var(--border)',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 700, color: 'var(--text-3)',
+                  }}>
+                    {project.author.name.charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{project.author.name}</span>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
       {/* Amostras */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
           <span className="section-title" style={{ flex: 1 }}>Amostras</span>
-          <button
-            onClick={() => setShowUpload(v => !v)}
-            style={{
-              marginLeft: 16, padding: '6px 14px',
-              background: 'var(--cyan-dim)', border: '1px solid rgba(0,212,255,0.3)',
-              borderRadius: 8, color: 'var(--cyan)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            }}
-          >
-            {showUpload ? '✕ Fechar' : '↑ Upload FASTQ'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => { setShowSraImport(v => !v); setShowUpload(false) }}
+              style={{
+                padding: '6px 14px',
+                background: showSraImport ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.08)',
+                border: '1px solid rgba(245,158,11,0.3)',
+                borderRadius: 8, color: 'var(--amber)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              {showSraImport ? '✕ Fechar' : '⬇ Import SRA'}
+            </button>
+            <button
+              onClick={() => { setShowUpload(v => !v); setShowSraImport(false) }}
+              style={{
+                padding: '6px 14px',
+                background: 'var(--cyan-dim)', border: '1px solid rgba(0,212,255,0.3)',
+                borderRadius: 8, color: 'var(--cyan)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              {showUpload ? '✕ Fechar' : '↑ Upload FASTQ'}
+            </button>
+          </div>
         </div>
+
+        {/* SRA Import Panel */}
+        {showSraImport && (
+          <div className="card" style={{ padding: 20, marginBottom: 16, borderColor: 'rgba(245,158,11,0.2)' }}>
+            <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 4, fontSize: 14 }}>
+              Importar FASTQ de repositório externo
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                Insira um accession. O download é feito via o repositório selecionado.
+              </span>
+              {/* Source selector — visível apenas quando há mais de uma opção */}
+              {fastqSources && fastqSources.sources.length > 1 && (
+                <select
+                  value={sraSource}
+                  onChange={e => { setSraSource(e.target.value); setSraMeta(null); setSraStatus('') }}
+                  style={{
+                    background: 'var(--surface-2)', border: '1px solid rgba(245,158,11,0.3)',
+                    borderRadius: 6, color: 'var(--amber)', fontSize: 12,
+                    fontFamily: 'var(--mono)', padding: '4px 8px', cursor: 'pointer',
+                  }}
+                >
+                  {fastqSources.sources.map(s => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </select>
+              )}
+              {fastqSources && fastqSources.sources.length === 1 && (
+                <span style={{
+                  fontSize: 11, fontFamily: 'var(--mono)', padding: '3px 8px',
+                  borderRadius: 4, background: 'rgba(245,158,11,0.08)',
+                  border: '1px solid rgba(245,158,11,0.2)', color: 'var(--amber)',
+                }}>
+                  {fastqSources.sources[0].label}
+                </span>
+              )}
+            </div>
+
+            {/* Step 1: verificar accession */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                value={sraAccession}
+                onChange={e => { setSraAccession(e.target.value.toUpperCase()); setSraMeta(null); setSraStatus('') }}
+                placeholder={sraSource === 'geo' ? 'GSM1234567' : 'SRR9847653'}
+                style={{
+                  flex: 1, minWidth: 180, background: 'var(--bg)', border: '1px solid var(--border)',
+                  borderRadius: 7, color: 'var(--text)', fontSize: 13, fontFamily: 'var(--mono)',
+                  padding: '7px 12px', outline: 'none',
+                }}
+              />
+              <button
+                onClick={handleSraVerify}
+                disabled={!sraAccession.trim() || sraVerifying}
+                style={{
+                  padding: '7px 16px',
+                  background: sraAccession.trim() && !sraVerifying ? 'rgba(245,158,11,0.15)' : 'var(--surface-2)',
+                  border: '1px solid rgba(245,158,11,0.3)',
+                  borderRadius: 7, color: 'var(--amber)', fontSize: 13, fontWeight: 600,
+                  cursor: sraAccession.trim() && !sraVerifying ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {sraVerifying ? 'Verificando...' : 'Verificar'}
+              </button>
+            </div>
+
+            {/* SRA metadata preview */}
+            {sraMeta && (
+              <div style={{
+                background: 'var(--surface-2)', borderRadius: 8, padding: '12px 14px',
+                marginBottom: 14, fontSize: 12,
+              }}>
+                <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 10 }}>
+                  <span><span style={{ color: 'var(--text-3)' }}>Accession:</span>{' '}
+                    <span className="mono" style={{ color: 'var(--amber)' }}>{sraMeta.accession}</span></span>
+                  <span><span style={{ color: 'var(--text-3)' }}>Estratégia:</span>{' '}
+                    <span className="mono">{sraMeta.library_strategy}</span></span>
+                  <span><span style={{ color: 'var(--text-3)' }}>Layout:</span>{' '}
+                    <span className="mono" style={{ color: 'var(--green)' }}>{sraMeta.library_layout}</span></span>
+                  {sraMeta.spots && (
+                    <span><span style={{ color: 'var(--text-3)' }}>Reads:</span>{' '}
+                      <span className="mono">{Number(sraMeta.spots).toLocaleString('pt-BR')}</span></span>
+                  )}
+                  <span><span style={{ color: 'var(--text-3)' }}>Organismo:</span>{' '}
+                    <span className="mono">{sraMeta.organism}</span></span>
+                  {sraMeta.bioproject && (
+                    <span><span style={{ color: 'var(--text-3)' }}>BioProject:</span>{' '}
+                      <span className="mono">{sraMeta.bioproject}</span></span>
+                  )}
+                  {sraMeta.biosample && sraMeta.biosample.startsWith('GSM') && (
+                    <span><span style={{ color: 'var(--text-3)' }}>GSM:</span>{' '}
+                      <span className="mono" style={{ color: 'var(--amber)' }}>{sraMeta.biosample}</span></span>
+                  )}
+                </div>
+
+                {/* Step 2: metadados da amostra */}
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>
+                      Grupo (treatment_group)
+                    </label>
+                    <input
+                      type="text"
+                      value={sraTreatment}
+                      onChange={e => setSraTreatment(e.target.value)}
+                      placeholder="T1B2"
+                      style={{
+                        background: 'var(--bg)', border: '1px solid var(--border)',
+                        borderRadius: 6, color: 'var(--text)', fontSize: 12,
+                        fontFamily: 'var(--mono)', padding: '6px 10px', outline: 'none', width: 120,
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>
+                      Réplica
+                    </label>
+                    <input
+                      type="number"
+                      value={sraReplicate}
+                      onChange={e => setSraReplicate(Number(e.target.value))}
+                      min={1}
+                      style={{
+                        background: 'var(--bg)', border: '1px solid var(--border)',
+                        borderRadius: 6, color: 'var(--text)', fontSize: 12,
+                        fontFamily: 'var(--mono)', padding: '6px 10px', outline: 'none', width: 70,
+                      }}
+                    />
+                  </div>
+                  <button
+                    onClick={handleSraImport}
+                    disabled={sraImporting || !sraTreatment.trim()}
+                    style={{
+                      padding: '7px 16px',
+                      background: !sraImporting && sraTreatment.trim() ? 'var(--amber)' : 'var(--surface-2)',
+                      border: 'none', borderRadius: 7,
+                      color: !sraImporting && sraTreatment.trim() ? '#050d1a' : 'var(--text-3)',
+                      fontSize: 13, fontWeight: 700,
+                      cursor: !sraImporting && sraTreatment.trim() ? 'pointer' : 'not-allowed',
+                    }}
+                  >
+                    {sraImporting ? 'Importando...' : 'Importar FASTQs'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {sraStatus === 'concluido' && (
+              <div style={{ fontSize: 12, color: 'var(--green)' }}>✓ FASTQs importados com sucesso.</div>
+            )}
+            {sraStatus && sraStatus !== 'concluido' && sraStatus !== 'baixando FASTQs do ENA...' && (
+              <div style={{ fontSize: 12, color: 'var(--red)' }}>{sraStatus}</div>
+            )}
+            {sraImporting && sraStatus === 'baixando FASTQs do ENA...' && (
+              <div style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{sraStatus}</div>
+            )}
+
+            {/* Lista de runs do BioProject (se disponível) */}
+            {sraRuns && sraRuns.runs.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Runs disponíveis em {sraRuns.bioproject}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 220, overflowY: 'auto' }}>
+                  {sraRuns.runs.map(run => (
+                    <div
+                      key={run.accession}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '7px 10px', background: 'var(--bg)',
+                        border: '1px solid var(--border)', borderRadius: 6, gap: 12,
+                      }}
+                    >
+                      <span className="mono" style={{ fontSize: 12, color: 'var(--amber)' }}>{run.accession}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-3)', flex: 1 }}>{run.sample_name}</span>
+                      <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{run.library_strategy}</span>
+                      <button
+                        onClick={() => { setSraAccession(run.accession); setSraMeta(null); setSraStatus('') }}
+                        style={{
+                          padding: '3px 10px', background: 'rgba(245,158,11,0.1)',
+                          border: '1px solid rgba(245,158,11,0.25)', borderRadius: 5,
+                          color: 'var(--amber)', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        }}
+                      >
+                        Usar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {showUpload && (
           <div className="card" style={{ padding: 20, marginBottom: 16 }}>

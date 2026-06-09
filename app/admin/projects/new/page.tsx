@@ -152,12 +152,13 @@ export default function NewProjectPage() {
   const { data: session } = useSession()
   const router = useRouter()
 
-  const [code, setCode]               = useState('')
-  const [name, setName]               = useState('')
-  const [description, setDescription] = useState('')
-  const [markerType, setMarkerType]   = useState<MarkerType>('16S')
-  const [submitting, setSubmitting]   = useState(false)
-  const [error, setError]             = useState<string | null>(null)
+  const [code, setCode]                   = useState('')
+  const [name, setName]                   = useState('')
+  const [description, setDescription]     = useState('')
+  const [bioprojectAcc, setBioprojectAcc] = useState('')
+  const [markerType, setMarkerType]       = useState<MarkerType>('16S')
+  const [submitting, setSubmitting]       = useState(false)
+  const [error, setError]                 = useState<string | null>(null)
 
   // analyses state: key → { enabled, charts }
   const initAnalysesState = (mt: MarkerType): Record<string, AnalysisState> => {
@@ -212,10 +213,11 @@ export default function NewProjectPage() {
         }))
 
       const { id } = await api.createProject(token, {
-        code: code.trim().toUpperCase(),
-        name: name.trim(),
-        description: description.trim(),
-        marker_type: markerType,
+        code:                 code.trim().toUpperCase(),
+        name:                 name.trim(),
+        description:          description.trim(),
+        marker_type:          markerType,
+        bioproject_accession: bioprojectAcc.trim().toUpperCase() || undefined,
         analyses,
       })
 
@@ -311,6 +313,26 @@ export default function NewProjectPage() {
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--cyan)')}
                 onBlur={e  => (e.currentTarget.style.borderColor = 'var(--border)')}
               />
+            </div>
+
+            {/* BioProject */}
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', display: 'block', marginBottom: 5 }}>
+                BioProject NCBI <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(opcional)</span>
+              </label>
+              <input
+                type="text"
+                value={bioprojectAcc}
+                onChange={e => setBioprojectAcc(e.target.value)}
+                placeholder="PRJNA123456"
+                maxLength={20}
+                style={inputStyle}
+                onFocus={e => (e.currentTarget.style.borderColor = 'var(--amber)')}
+                onBlur={e  => (e.currentTarget.style.borderColor = 'var(--border)')}
+              />
+              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                Vincula o projeto a um BioProject para importar runs SRA diretamente.
+              </div>
             </div>
 
             {/* Marker type */}
