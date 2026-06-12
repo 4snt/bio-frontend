@@ -3,6 +3,7 @@
 import { signIn } from "next-auth/react"
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
+import Image from "next/image"
 
 function ErrorMessage({ error }: { error: string | null }) {
   if (!error) return null
@@ -149,6 +150,38 @@ function LoginContent() {
           >
             @ufvjm.edu.br
           </div>
+        </div>
+
+        {/* Institution logos */}
+        <div style={{ height: 1, background: "var(--border)" }} />
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 20,
+          flexWrap: "wrap",
+        }}>
+          <Image
+            src="/logo_decom.png"
+            alt="DECOM"
+            width={80}
+            height={32}
+            style={{ objectFit: "contain", opacity: 0.75 }}
+          />
+          <Image
+            src="/logo_nebim.svg"
+            alt="NEBIM"
+            width={90}
+            height={32}
+            style={{ objectFit: "contain", opacity: 0.75 }}
+          />
+          <Image
+            src="/logo_inovaherb.png"
+            alt="INOVAHERB"
+            width={85}
+            height={32}
+            style={{ objectFit: "contain", opacity: 0.75 }}
+          />
         </div>
       </div>
     </div>

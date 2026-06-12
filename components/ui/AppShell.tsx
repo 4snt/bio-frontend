@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/ui/Sidebar'
+import { Footer } from '@/components/ui/Footer'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -14,9 +15,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="shell">
       <Sidebar />
-      <main className="main-content">
-        {children}
-      </main>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh' }}>
+        <main className="main-content" style={{ flex: 1 }}>
+          {children}
+        </main>
+        <Footer />
+      </div>
     </div>
   )
 }
