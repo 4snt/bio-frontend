@@ -109,6 +109,30 @@ export const api = {
                      method: 'POST',
                      body: JSON.stringify(body),
                    }),
+
+  // Metagenomics module
+  getMetagenomicsStatus: (projectId: string) =>
+    apiFetch<MetagenomicsStatus>(`/api/v1/metagenomics/${projectId}/status`),
+
+  runMetagenomicsPipeline: (projectId: string, phyloseqOid: number) =>
+    apiFetch<{ job_id: string }>(`/api/v1/metagenomics/${projectId}/run`, {
+      method: 'POST',
+      body: JSON.stringify({ phyloseq_oid: phyloseqOid }),
+    }),
+
+  getAsvTable: (projectId: string, level = 'genus') =>
+    apiFetch<AsvTableResult>(`/api/v1/metagenomics/${projectId}/asv-table?level=${level}`),
+
+  getDiversity: (projectId: string, level = 'genus') =>
+    apiFetch<DiversityResult>(`/api/v1/metagenomics/${projectId}/diversity?level=${level}`),
+
+  getOrdination: (projectId: string, type = 'pcoa', betaMetric = 'bray', level = 'genus') =>
+    apiFetch<OrdinationResult>(
+      `/api/v1/metagenomics/${projectId}/ordination?type=${type}&beta_metric=${betaMetric}&level=${level}`
+    ),
+
+  getBiomarkers: (projectId: string, level = 'genus') =>
+    apiFetch<BiomarkersResult>(`/api/v1/metagenomics/${projectId}/biomarkers?level=${level}`),
 }
 
 export interface AnalysisConfig {
@@ -312,4 +336,104 @@ export interface Invite {
   role: string
   invited_at: string
   used_at: string | null
+}
+
+// ── Metagenomics ────────────────────────────────────────────────────────────
+
+export type TaxLevel = 'phylum' | 'class' | 'order' | 'family' | 'genus' | 'species'
+export type BetaMetricKey = 'bray' | 'jaccard'
+
+export interface MetagenomicsStatus {
+  has_results: boolean
+  job_status: 'queued' | 'running' | 'done' | 'failed' | null
+  last_job_id: string | null
+  completed_at: string | null
+  error_msg: string | null
+}
+
+export interface AsvRow {
+  taxon: string
+  taxonomy: Partial<Record<TaxLevel | 'domain', string>>
+  samples: Record<string, number>
+  total: number
+}
+
+export interface AsvTableResult {
+  level: TaxLevel
+  sample_names: string[]
+  rows: AsvRow[]
+  available_levels: string[]
+  total_asvs: number
+}
+
+export interface AlphaPoint {
+  sample_id: string
+  treatment_group: string
+  shannon: number
+  simpson: number
+  invsimpson: number
+  richness: number
+  margalef: number
+  pielou: number
+}
+
+export interface KruskalResult {
+  metric: string
+  statistic: number
+  p_value: number
+  df: number
+}
+
+export interface BetaMatrix {
+  metric: string
+  matrix: number[][]
+  sample_names: string[]
+}
+
+export interface PermanovaResult {
+  metric: string
+  r2: number
+  p_value: number
+  df: number
+}
+
+export interface DiversityResult {
+  alpha: AlphaPoint[]
+  kruskal: KruskalResult | null
+  beta: Record<string, BetaMatrix>
+  permanova: Record<string, PermanovaResult>
+  available_metrics: string[]
+  level_computed: string
+}
+
+export interface PcoaPoint {
+  sample_id: string
+  treatment_group: string
+  axis1: number
+  axis2: number
+  axis3: number
+}
+
+export interface OrdinationResult {
+  type: 'pcoa' | 'pca'
+  beta_metric: string
+  variance_explained: number[]
+  points: PcoaPoint[]
+  permanova: PermanovaResult | null
+}
+
+export interface BiomarkerEntry {
+  taxon: string
+  taxonomy: Partial<Record<TaxLevel, string>>
+  effect_size: number
+  p_value: number
+  direction: 'enriched' | 'depleted'
+}
+
+export interface BiomarkersResult {
+  method: string
+  level: string
+  markers: BiomarkerEntry[]
+  comparison?: string
+  note?: string
 }

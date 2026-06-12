@@ -280,6 +280,29 @@ export default function ProjectDetailPage() {
         )}
       </div>
 
+      {/* Acesso rápido ao módulo metagenômico */}
+      {project && (
+        <div style={{ marginBottom: 20 }}>
+          <Link
+            href={`/projects/${id}/metagenomics`}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '8px 18px',
+              background: 'rgba(0,212,255,0.08)',
+              border: '1px solid rgba(0,212,255,0.25)',
+              borderRadius: 8, color: 'var(--cyan)',
+              fontSize: 13, fontWeight: 600, textDecoration: 'none',
+              transition: 'all 0.15s',
+            }}
+          >
+            🧬 Módulo de Metagenômica
+            <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 400 }}>
+              ASV · Diversidade · PCoA · Biomarcadores →
+            </span>
+          </Link>
+        </div>
+      )}
+
       {/* Amostras */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
