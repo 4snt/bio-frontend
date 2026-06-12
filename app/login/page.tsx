@@ -169,11 +169,11 @@ function LoginContent() {
             style={{ objectFit: "contain", opacity: 0.75 }}
           />
           <Image
-            src="/logo_nebim.svg"
+            src="/logo_nebim.jpg"
             alt="NEBIM"
             width={90}
-            height={32}
-            style={{ objectFit: "contain", opacity: 0.75 }}
+            height={90}
+            style={{ objectFit: "contain" }}
           />
           <Image
             src="/logo_inovaherb.png"
