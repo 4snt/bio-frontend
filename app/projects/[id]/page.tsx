@@ -193,6 +193,26 @@ export default function ProjectDetailPage() {
     }
   }
 
+  // Gerar phyloseq via DADA2
+  const [generatingPhyloseq, setGeneratingPhyloseq] = useState(false)
+  const [phyloseqStatus, setPhyloseqStatus] = useState('')
+  const samplesWithFastq = samples?.filter((s: Sample) => s.fastq_r1_oid && s.fastq_r2_oid) ?? []
+
+  async function handleGeneratePhyloseq() {
+    if (!id || generatingPhyloseq) return
+    setGeneratingPhyloseq(true)
+    setPhyloseqStatus('enfileirando...')
+    try {
+      await api.enqueueJob(id, 'dada2_pipeline')
+      setPhyloseqStatus('job enfileirado — acompanhe o progresso em Analises')
+      mutate(['jobs', id])
+    } catch (e: unknown) {
+      setPhyloseqStatus(e instanceof Error ? e.message : 'Erro ao enfileirar DADA2.')
+    } finally {
+      setGeneratingPhyloseq(false)
+    }
+  }
+
   // Enqueue
   const [showEnqueue, setShowEnqueue] = useState(false)
   const [selectedJobType, setSelectedJobType] = useState(ANALYSIS_TYPES[0])
@@ -635,24 +655,54 @@ export default function ProjectDetailPage() {
 
       {/* Artefatos */}
       <div style={{ marginBottom: 32 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
           <div>
             <span className="section-title">Artefatos</span>
             <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 10 }}>
               arquivos .rds usados como entrada nas análises
             </span>
           </div>
-          <button
-            onClick={() => setShowArtifactUpload(v => !v)}
-            style={{
-              padding: '6px 14px', background: 'rgba(168,85,247,0.1)',
-              border: '1px solid rgba(168,85,247,0.25)', borderRadius: 8,
-              color: 'var(--purple)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            }}
-          >
-            {showArtifactUpload ? '✕ Fechar' : '↑ Upload .rds'}
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {samplesWithFastq.length > 0 && (
+              <button
+                onClick={handleGeneratePhyloseq}
+                disabled={generatingPhyloseq}
+                title={`Gerar phyloseq .rds automaticamente a partir dos ${samplesWithFastq.length} pares FASTQ (DADA2 + SILVA/UNITE)`}
+                style={{
+                  padding: '6px 14px',
+                  background: generatingPhyloseq ? 'var(--surface-2)' : 'rgba(16,212,138,0.1)',
+                  border: `1px solid ${generatingPhyloseq ? 'var(--border)' : 'rgba(16,212,138,0.3)'}`,
+                  borderRadius: 8, color: generatingPhyloseq ? 'var(--text-3)' : 'var(--green)',
+                  fontSize: 13, fontWeight: 600,
+                  cursor: generatingPhyloseq ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {generatingPhyloseq ? 'Enfileirando...' : `⚗ Gerar phyloseq (DADA2)`}
+              </button>
+            )}
+            <button
+              onClick={() => setShowArtifactUpload(v => !v)}
+              style={{
+                padding: '6px 14px', background: 'rgba(168,85,247,0.1)',
+                border: '1px solid rgba(168,85,247,0.25)', borderRadius: 8,
+                color: 'var(--purple)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              {showArtifactUpload ? '✕ Fechar' : '↑ Upload .rds'}
+            </button>
+          </div>
         </div>
+        {phyloseqStatus && (
+          <div style={{
+            marginBottom: 12, padding: '8px 12px',
+            background: phyloseqStatus.includes('Erro') ? 'rgba(239,68,68,0.07)' : 'rgba(16,212,138,0.07)',
+            border: `1px solid ${phyloseqStatus.includes('Erro') ? 'rgba(239,68,68,0.2)' : 'rgba(16,212,138,0.2)'}`,
+            borderRadius: 8, fontSize: 12,
+            color: phyloseqStatus.includes('Erro') ? 'var(--red)' : 'var(--green)',
+          }}>
+            {phyloseqStatus}
+          </div>
+        )}
 
         {showArtifactUpload && (
           <div className="card" style={{ padding: 20, marginBottom: 16, borderColor: 'rgba(168,85,247,0.2)' }}>
