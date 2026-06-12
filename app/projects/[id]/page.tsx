@@ -11,6 +11,36 @@ const ANALYSIS_TYPES = [
   'random_forest', 'gsea', 'funguild', 'picrust2',
 ]
 
+const GSEA_ORGANISMS = [
+  { value: 'Homo sapiens',              label: 'Homo sapiens (Human)' },
+  { value: 'Mus musculus',              label: 'Mus musculus (Mouse)' },
+  { value: 'Arabidopsis thaliana',      label: 'Arabidopsis thaliana' },
+  { value: 'Saccharomyces cerevisiae',  label: 'Saccharomyces cerevisiae' },
+  { value: 'Aspergillus niger',         label: 'Aspergillus niger' },
+  { value: 'Fusarium graminearum',      label: 'Fusarium graminearum' },
+  { value: 'Trichoderma reesei',        label: 'Trichoderma reesei' },
+  { value: 'Cryptococcus neoformans',   label: 'Cryptococcus neoformans' },
+  { value: 'Candida albicans',          label: 'Candida albicans' },
+  { value: 'Escherichia coli',          label: 'Escherichia coli' },
+  { value: 'Bacillus subtilis',         label: 'Bacillus subtilis' },
+]
+
+interface BatchPair { r1: File; r2: File; name: string }
+
+function autoPairFiles(files: File[]): { pairs: BatchPair[]; unmatched: string[] } {
+  const r1s = files.filter(f => /_R1[_.]/.test(f.name))
+  const r2s = files.filter(f => /_R2[_.]/.test(f.name))
+  const pairs: BatchPair[] = []
+  const unmatched: string[] = []
+  for (const r1 of r1s) {
+    const key = r1.name.replace(/_R1([_.])/, '_R2$1')
+    const r2 = r2s.find(f => f.name === key)
+    if (r2) pairs.push({ r1, r2, name: r1.name })
+    else unmatched.push(r1.name)
+  }
+  return { pairs, unmatched }
+}
+
 function markerBadge(marker: string) {
   if (marker === 'ITS') return <span className="badge badge-purple">ITS</span>
   return <span className="badge badge-blue">16S</span>
@@ -64,41 +94,51 @@ export default function ProjectDetailPage() {
     { revalidateOnFocus: false }
   )
 
-  // Upload FASTQ
+  // Upload FASTQ (batch)
   const [showUpload, setShowUpload] = useState(false)
-  const [r1File, setR1File] = useState<File | null>(null)
-  const [r2File, setR2File] = useState<File | null>(null)
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [uploadStatus, setUploadStatus] = useState('')
-  const [uploading, setUploading] = useState(false)
-  const r1Ref = useRef<HTMLInputElement>(null)
-  const r2Ref = useRef<HTMLInputElement>(null)
+  const [batchPairs, setBatchPairs] = useState<BatchPair[]>([])
+  const [batchUnmatched, setBatchUnmatched] = useState<string[]>([])
+  const [batchUploading, setBatchUploading] = useState(false)
+  const [batchDone, setBatchDone] = useState(0)
+  const [batchError, setBatchError] = useState('')
+  const batchRef = useRef<HTMLInputElement>(null)
 
-  async function handleUpload() {
-    if (!r1File || !r2File || !id) return
-    setUploading(true)
-    setUploadProgress(10)
-    setUploadStatus('enviando para o banco de dados...')
-    try {
-      setUploadProgress(40)
-      await api.uploadFastqPair(r1File, r2File, id)
-      setUploadProgress(100)
-      setUploadStatus('concluido')
-      mutate(['samples', id])
-      setTimeout(() => {
-        setR1File(null)
-        setR2File(null)
-        setUploadProgress(0)
-        setUploadStatus('')
-        setShowUpload(false)
-        if (r1Ref.current) r1Ref.current.value = ''
-        if (r2Ref.current) r2Ref.current.value = ''
-      }, 1500)
-    } catch {
-      setUploadStatus('Erro durante o upload. Tente novamente.')
-    } finally {
-      setUploading(false)
+  function handleBatchSelect(files: FileList | null) {
+    if (!files) return
+    const arr = Array.from(files)
+    const { pairs, unmatched } = autoPairFiles(arr)
+    setBatchPairs(pairs)
+    setBatchUnmatched(unmatched)
+    setBatchDone(0)
+    setBatchError('')
+  }
+
+  async function handleBatchUpload() {
+    if (!batchPairs.length || !id) return
+    setBatchUploading(true)
+    setBatchDone(0)
+    setBatchError('')
+    let done = 0
+    for (const pair of batchPairs) {
+      try {
+        await api.uploadFastqPair(pair.r1, pair.r2, id)
+        done++
+        setBatchDone(done)
+      } catch {
+        setBatchError(`Falha no par ${pair.name}. ${done} de ${batchPairs.length} enviados.`)
+        setBatchUploading(false)
+        return
+      }
     }
+    mutate(['samples', id])
+    setBatchUploading(false)
+    setTimeout(() => {
+      setBatchPairs([])
+      setBatchUnmatched([])
+      setBatchDone(0)
+      setShowUpload(false)
+      if (batchRef.current) batchRef.current.value = ''
+    }, 2000)
   }
 
   // Upload artefato .rds
@@ -218,6 +258,8 @@ export default function ProjectDetailPage() {
   const [selectedJobType, setSelectedJobType] = useState(ANALYSIS_TYPES[0])
   const [selectedOid, setSelectedOid] = useState<number | null>(null)
   const [enqueueing, setEnqueueing] = useState(false)
+  const [ancomFormula, setAncomFormula] = useState('treatment_group')
+  const [gseaOrganism, setGseaOrganism] = useState('Aspergillus niger')
 
   function openEnqueue() {
     if (!selectedOid && artifacts?.available.length) {
@@ -226,11 +268,17 @@ export default function ProjectDetailPage() {
     setShowEnqueue(v => !v)
   }
 
+  function buildPayload(): Record<string, unknown> {
+    if (selectedJobType === 'ancombc2') return { formula: ancomFormula }
+    if (selectedJobType === 'gsea')     return { organism: gseaOrganism }
+    return {}
+  }
+
   async function handleEnqueue() {
     if (!id) return
     setEnqueueing(true)
     try {
-      await api.enqueueJob(id, selectedJobType, selectedOid ?? undefined)
+      await api.enqueueJob(id, selectedJobType, selectedOid ?? undefined, buildPayload())
       mutate(['jobs', id])
       setShowEnqueue(false)
     } catch {
@@ -247,8 +295,6 @@ export default function ProjectDetailPage() {
       </div>
     )
   }
-
-  const canUpload = !!r1File && !!r2File && !uploading
 
   return (
     <>
@@ -547,60 +593,87 @@ export default function ProjectDetailPage() {
 
         {showUpload && (
           <div className="card" style={{ padding: 20, marginBottom: 16 }}>
-            <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 14, fontSize: 14 }}>
-              Upload de Par FASTQ
+            <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 4, fontSize: 14 }}>
+              Upload em Lote de FASTQs
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>
-                  Arquivo R1:
-                </label>
-                <input ref={r1Ref} type="file" accept=".fastq,.fastq.gz"
-                  onChange={e => setR1File(e.target.files?.[0] ?? null)}
-                  style={{ color: 'var(--text)', fontSize: 13 }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>
-                  Arquivo R2:
-                </label>
-                <input ref={r2Ref} type="file" accept=".fastq,.fastq.gz"
-                  onChange={e => setR2File(e.target.files?.[0] ?? null)}
-                  style={{ color: 'var(--text)', fontSize: 13 }} />
-              </div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 14 }}>
+              Selecione todos os arquivos R1 + R2 de uma vez. Os pares são detectados automaticamente pelo nome.
             </div>
+            <input
+              ref={batchRef}
+              type="file"
+              accept=".fastq,.fastq.gz"
+              multiple
+              onChange={e => handleBatchSelect(e.target.files)}
+              style={{ color: 'var(--text)', fontSize: 13, marginBottom: 14 }}
+            />
 
-            {uploadProgress > 0 && uploadProgress < 100 && (
+            {batchPairs.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {batchPairs.length} par(es) detectado(s)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 180, overflowY: 'auto' }}>
+                  {batchPairs.map((p, i) => (
+                    <div key={p.name} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '4px 8px', borderRadius: 5,
+                      background: i < batchDone ? 'rgba(16,212,138,0.07)' : 'var(--surface-2)',
+                      border: `1px solid ${i < batchDone ? 'rgba(16,212,138,0.2)' : 'var(--border)'}`,
+                    }}>
+                      <span style={{ fontSize: 11, color: i < batchDone ? 'var(--green)' : 'var(--text-3)' }}>
+                        {i < batchDone ? '✓' : `${i + 1}.`}
+                      </span>
+                      <span className="mono" style={{ fontSize: 11, color: 'var(--text-2)', flex: 1 }}>{p.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {batchUnmatched.length > 0 && (
+              <div style={{ fontSize: 12, color: 'var(--amber)', marginBottom: 10 }}>
+                ⚠ {batchUnmatched.length} arquivo(s) sem par R2: {batchUnmatched.join(', ')}
+              </div>
+            )}
+
+            {batchUploading && (
               <div style={{ marginBottom: 12 }}>
                 <div style={{ height: 6, background: 'var(--surface-2)', borderRadius: 99, overflow: 'hidden', marginBottom: 6 }}>
                   <div style={{
-                    height: '100%', width: `${uploadProgress}%`,
+                    height: '100%',
+                    width: `${Math.round((batchDone / batchPairs.length) * 100)}%`,
                     background: 'linear-gradient(90deg, var(--cyan), rgba(0,212,255,0.5))',
-                    borderRadius: 99, transition: 'width 0.5s ease',
+                    borderRadius: 99, transition: 'width 0.4s ease',
                   }} />
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-                  {uploadProgress}% — {uploadStatus}
+                  {batchDone}/{batchPairs.length} pares enviados...
                 </div>
               </div>
             )}
 
-            {uploadStatus === 'concluido' && (
-              <div style={{ fontSize: 12, color: 'var(--green)', marginBottom: 12 }}>
-                Upload concluído com sucesso.
+            {batchDone > 0 && !batchUploading && !batchError && (
+              <div style={{ fontSize: 12, color: 'var(--green)', marginBottom: 10 }}>
+                ✓ {batchDone} par(es) enviado(s) com sucesso.
               </div>
             )}
-            {uploadStatus.startsWith('Erro') && (
-              <div style={{ fontSize: 12, color: 'var(--red)', marginBottom: 12 }}>{uploadStatus}</div>
+            {batchError && (
+              <div style={{ fontSize: 12, color: 'var(--red)', marginBottom: 10 }}>{batchError}</div>
             )}
 
-            <button onClick={handleUpload} disabled={!canUpload} style={{
-              padding: '8px 18px',
-              background: canUpload ? 'var(--cyan)' : 'var(--surface-2)',
-              color: canUpload ? '#050d1a' : 'var(--text-3)',
-              border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700,
-              cursor: canUpload ? 'pointer' : 'not-allowed',
-            }}>
-              {uploading ? 'Enviando...' : 'Confirmar Upload'}
+            <button
+              onClick={handleBatchUpload}
+              disabled={batchPairs.length === 0 || batchUploading}
+              style={{
+                padding: '8px 18px',
+                background: batchPairs.length > 0 && !batchUploading ? 'var(--cyan)' : 'var(--surface-2)',
+                color: batchPairs.length > 0 && !batchUploading ? '#050d1a' : 'var(--text-3)',
+                border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                cursor: batchPairs.length > 0 && !batchUploading ? 'pointer' : 'not-allowed',
+              }}
+            >
+              {batchUploading ? `Enviando ${batchDone}/${batchPairs.length}...` : `Enviar ${batchPairs.length} par(es)`}
             </button>
           </div>
         )}
@@ -886,6 +959,49 @@ export default function ProjectDetailPage() {
                 {enqueueing ? 'Enfileirando...' : 'Enfileirar'}
               </button>
             </div>
+
+            {/* Campos extras por tipo de análise */}
+            {selectedJobType === 'ancombc2' && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>
+                  Fórmula ANCOM-BC2{' '}
+                  <span style={{ fontSize: 11, color: 'var(--text-3)' }}>(variáveis separadas por +)</span>
+                </label>
+                <input
+                  type="text"
+                  value={ancomFormula}
+                  onChange={e => setAncomFormula(e.target.value)}
+                  placeholder="treatment_group"
+                  style={{
+                    background: 'var(--bg)', border: '1px solid var(--border)',
+                    borderRadius: 7, color: 'var(--text)', fontSize: 13,
+                    fontFamily: 'var(--mono)', padding: '6px 10px', outline: 'none', width: 320,
+                  }}
+                />
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                  Ex: <span className="mono">treatment_group</span> · <span className="mono">treatment_group + block</span>
+                </div>
+              </div>
+            )}
+
+            {selectedJobType === 'gsea' && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>
+                  Organismo para GSEA
+                </label>
+                <select
+                  value={gseaOrganism}
+                  onChange={e => setGseaOrganism(e.target.value)}
+                  style={{
+                    background: 'var(--surface-2)', border: '1px solid var(--border)',
+                    borderRadius: 7, color: 'var(--text)', padding: '6px 10px',
+                    fontSize: 13, fontFamily: 'var(--mono)', width: 320,
+                  }}
+                >
+                  {GSEA_ORGANISMS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            )}
           </div>
         )}
 

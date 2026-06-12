@@ -53,13 +53,13 @@ export const api = {
                       return fetch(`${API_URL}/api/v1/samples/artifact-upload`, { method: 'POST', body: form })
                         .then(res => { if (!res.ok) throw new Error(`API error ${res.status}`); return res.json() }) as Promise<ArtifactUploadResult>
                     },
-  enqueueJob:       (projectId: string, jobType: string, phyloseqOid?: number) =>
+  enqueueJob:       (projectId: string, jobType: string, phyloseqOid?: number, payload?: Record<string, unknown>) =>
                       apiFetch<{ job_id: string }>('/api/v1/jobs/enqueue', {
                         method: 'POST',
                         body: JSON.stringify({
                           project_id: projectId,
                           job_type: jobType,
-                          payload: {},
+                          payload: payload ?? {},
                           phyloseq_oid: phyloseqOid ?? null,
                         }),
                       }),
