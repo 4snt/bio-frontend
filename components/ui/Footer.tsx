@@ -4,34 +4,35 @@ export function Footer() {
   return (
     <footer style={{
       borderTop: '1px solid var(--border)',
-      padding: '16px 24px',
+      padding: '12px 16px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 32,
+      gap: 20,
       flexWrap: 'wrap',
       background: 'var(--surface)',
+      flexShrink: 0,
     }}>
       <Image
         src="/logo_decom.png"
         alt="DECOM — Departamento de Computação UFVJM"
-        width={100}
-        height={40}
-        style={{ objectFit: 'contain', opacity: 0.85 }}
+        width={80}
+        height={32}
+        style={{ objectFit: 'contain', opacity: 0.8, maxWidth: '25vw', height: 'auto' }}
       />
       <Image
         src="/logo_nebim.svg"
-        alt="NEBIM — Núcleo de Estudos em Biologia Integrativa e Micobioma"
-        width={120}
-        height={40}
-        style={{ objectFit: 'contain', opacity: 0.85 }}
+        alt="NEBIM"
+        width={100}
+        height={32}
+        style={{ objectFit: 'contain', opacity: 0.8, maxWidth: '28vw', height: 'auto' }}
       />
       <Image
         src="/logo_inovaherb.png"
-        alt="INOVAHERB — Grupos de Pesquisa em Manejo Sustentável de Plantas Daninhas"
-        width={110}
-        height={40}
-        style={{ objectFit: 'contain', opacity: 0.85 }}
+        alt="INOVAHERB"
+        width={90}
+        height={32}
+        style={{ objectFit: 'contain', opacity: 0.8, maxWidth: '25vw', height: 'auto' }}
       />
     </footer>
   )

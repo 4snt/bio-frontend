@@ -12,8 +12,7 @@ const NAV_ITEMS = [
   { href: '/',              label: 'Dashboard',      icon: '⬡' },
   { href: '/projects',      label: 'Projetos',       icon: '⬡' },
   { href: '/jobs',          label: 'Fila de Jobs',   icon: '◈' },
-  { href: '/diversity',     label: 'Beta Diversity',  icon: '◎' },
-  { href: '/cross-project', label: 'Figura TCC ✦',   icon: '✦' },
+  { href: '/diversity',     label: 'Alpha Diversity', icon: '◎' },
   { href: '/docs',          label: 'API Docs',        icon: '◫' },
 ]
 
@@ -228,23 +227,50 @@ function UserPanel() {
   )
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean
+  onClose?: () => void
+}
+
+export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const isActive = (href: string) => href === '/' ? pathname === '/' : pathname.startsWith(href)
   const isAdmin  = session?.role === 'admin'
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? ' sidebar-open' : ''}`}>
       <div className="sidebar-header">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div className="sidebar-logo">
             <span className="sidebar-logo-icon">🧬</span>
             <div className="sidebar-logo-text glow-cyan">Rizoma</div>
           </div>
-          <ThemeToggle />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <ThemeToggle />
+            {onClose && (
+              <button
+                onClick={onClose}
+                aria-label="Fechar menu"
+                style={{
+                  display: 'none', // visível apenas em mobile via CSS abaixo
+                  background: 'none',
+                  border: '1px solid var(--border)',
+                  borderRadius: 6,
+                  color: 'var(--text-3)',
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  lineHeight: 1,
+                  padding: '3px 7px',
+                }}
+                className="sidebar-close-btn"
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
-        <div className="sidebar-subtitle">TCC · BIOINFORMÁTICA</div>
+        <div className="sidebar-subtitle">BIOINFORMÁTICA · UFVJM</div>
       </div>
 
       <nav className="sidebar-nav">

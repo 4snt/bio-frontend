@@ -141,7 +141,7 @@ body {
 /* ── Layout shell ──────────────────────────────────────────────────── */
 .shell {
   display: flex;
-  height: 100vh;
+  height: 100svh;
   overflow: hidden;
 }
 
@@ -153,12 +153,60 @@ body {
   background: var(--surface);
   border-right: 1px solid var(--border);
   overflow-y: auto;
+  transition: transform 250ms ease;
 }
 
 .main-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 28px 32px;
+}
+
+/* Mobile top bar (hamburger) */
+.mobile-topbar {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.hamburger-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-2);
+  cursor: pointer;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.hamburger-btn span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+  transition: all 150ms ease;
+}
+
+/* Sidebar backdrop overlay */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 99;
+  backdrop-filter: blur(2px);
 }
 
 /* ── Sidebar internals ─────────────────────────────────────────────── */
@@ -685,6 +733,102 @@ body {
 .text-3 { color: var(--text-3); }
 .font-mono { font-family: var(--mono); }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Responsive ────────────────────────────────────────────────────── */
+
+/* Tablet (768px–1023px): sidebar estreita, padding reduzido */
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root { --sidebar-w: 200px; }
+
+  .main-content { padding: 20px 24px; }
+
+  .project-grid { grid-template-columns: 1fr; }
+
+  .metric-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+
+  .metric-value { font-size: 28px; }
+
+  .sidebar-logo-text { font-size: 13px; }
+}
+
+/* Mobile (<768px): sidebar como overlay, top bar com hambúrguer */
+@media (max-width: 767px) {
+  html, body { overflow-x: hidden; }
+
+  /* Sidebar vira overlay fixo */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100svh;
+    width: 260px;
+    z-index: 100;
+    transform: translateX(-260px);
+    border-right: 1px solid var(--border-h);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .sidebar.sidebar-open { transform: translateX(0); }
+
+  /* Overlay backdrop */
+  .sidebar-overlay { display: block; }
+  .sidebar-overlay.hidden { display: none; }
+
+  /* Top bar com hambúrguer */
+  .mobile-topbar { display: flex; }
+
+  /* Botão fechar sidebar visível em mobile */
+  .sidebar-close-btn { display: block !important; }
+
+  /* Conteúdo principal sem sidebar */
+  .shell { flex-direction: column; }
+
+  .main-content {
+    padding: 16px;
+    height: calc(100svh - 49px); /* 49px = altura do topbar */
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* Métricas: 2 colunas em mobile */
+  .metric-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .metric-value { font-size: 24px; margin: 6px 0 4px; }
+  .metric-card  { padding: 14px 14px; }
+  .metric-label { font-size: 11px; }
+
+  /* Projetos: 1 coluna */
+  .project-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Jobs table: simplificada */
+  .jobs-table-header { display: none; }
+
+  .jobs-row {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 4px 8px;
+    padding: 10px 12px;
+  }
+
+  .job-id   { grid-column: 1; grid-row: 2; font-size: 10px; }
+  .job-type { grid-column: 1; grid-row: 1; font-size: 13px; }
+  .job-time { display: none; }
+
+  /* Badges e seções */
+  .page-title   { font-size: 18px; }
+  .page-subtitle{ font-size: 12px; }
+  .section-title{ font-size: 11px; }
+
+  /* Empty state menor */
+  .empty-state { padding: 40px 16px; }
+}
 
 /* ── Swagger UI — reset para integrar com o tema ─────────────────── */
 .swagger-ui { font-family: var(--sans) !important; }
