@@ -158,7 +158,7 @@ function LoginContent() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: 20,
+          gap: 16,
           flexWrap: "wrap",
         }}>
           <Image
@@ -166,21 +166,28 @@ function LoginContent() {
             alt="DECOM"
             width={80}
             height={32}
-            style={{ objectFit: "contain", opacity: 0.75 }}
+            style={{ objectFit: "contain", opacity: 0.8 }}
           />
-          <Image
-            src="/logo_nebim.jpg"
-            alt="NEBIM"
-            width={90}
-            height={90}
-            style={{ objectFit: "contain" }}
-          />
+          <div style={{
+            background: "#ffffff",
+            borderRadius: 8,
+            padding: "4px 6px",
+            border: "1px solid rgba(0,0,0,0.06)",
+          }}>
+            <Image
+              src="/logo_nebim.jpg"
+              alt="NEBIM"
+              width={80}
+              height={80}
+              style={{ objectFit: "contain", display: "block" }}
+            />
+          </div>
           <Image
             src="/logo_inovaherb.png"
             alt="INOVAHERB"
             width={85}
             height={32}
-            style={{ objectFit: "contain", opacity: 0.75 }}
+            style={{ objectFit: "contain", opacity: 0.8 }}
           />
         </div>
       </div>
