@@ -521,7 +521,7 @@ export default function MetagenomicsPage() {
                 <div className="plot-card">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                     <span className="section-title" style={{ marginBottom: 0 }}>
-                      Beta Diversity — {betaMetric === 'bray' ? 'Bray-Curtis' : 'Jaccard'} (matriz)
+                      Diversidade Beta — {betaMetric === 'bray' ? 'Bray-Curtis' : 'Jaccard'} (matriz)
                     </span>
                     {divData.permanova?.[betaMetric] && (
                       <span style={{ fontSize: 11, color: 'var(--text-2)', fontFamily: 'var(--mono)' }}>

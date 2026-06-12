@@ -47,9 +47,9 @@ export default function DiversityPage() {
   return (
     <>
       <div className="page-header">
-        <h1 className="page-title">Beta Diversity</h1>
+        <h1 className="page-title">Alpha Diversity</h1>
         <p className="page-subtitle">
-          PCoA — visualização da diversidade beta entre grupos
+          Índices de diversidade alfa por grupo de tratamento
         </p>
       </div>
 

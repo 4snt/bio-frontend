@@ -73,10 +73,10 @@ function LoginContent() {
               letterSpacing: "-0.01em",
             }}
           >
-            Bio-Platform
+            Rizoma
           </div>
           <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 4 }}>
-            TCC · Bioinformática
+            Bioinformática · UFVJM
           </div>
           <div style={{
             fontSize: 11,

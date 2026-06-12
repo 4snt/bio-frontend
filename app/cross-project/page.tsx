@@ -103,8 +103,8 @@ export default function CrossProjectPage() {
       {/* Header */}
       <div className="page-header">
         <div className="flex items-center gap-3">
-          <h1 className="page-title">Figura TCC</h1>
-          <span className="badge badge-cyan">✦ Figura Central</span>
+          <h1 className="page-title">Diversidade Cross-Project</h1>
+          <span className="badge badge-cyan">✦ Painel Comparativo</span>
         </div>
         <p className="page-subtitle">
           Painel de 6 PCoAs gerado após evento{' '}

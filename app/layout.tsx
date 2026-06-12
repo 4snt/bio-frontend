@@ -5,8 +5,8 @@ import { AppShell } from '@/components/ui/AppShell'
 import { ThemeProvider } from '@/components/ui/ThemeProvider'
 
 export const metadata: Metadata = {
-  title: 'Bio-Platform',
-  description: 'Plataforma de análise de micobioma e transcriptômica',
+  title: 'Rizoma',
+  description: 'Plataforma de análise de micobioma e transcriptômica — UFVJM',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
